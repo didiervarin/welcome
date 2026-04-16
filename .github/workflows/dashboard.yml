@@ -1,32 +1,32 @@
 name: Dashboard Paris
-
+ 
 on:
   schedule:
-    # Toutes les heures (minute 0), entre 6h et 23h UTC (8h-1h heure Paris)
-    - cron: '0 6-23 * * *'
+    # Toutes les 15 minutes (00, 15, 30, 45), entre 6h et 23h UTC (8h-1h heure Paris)
+    - cron: '0,15,30,45 6-23 * * *'
   workflow_dispatch: # Lancement manuel depuis l'onglet Actions
-
+ 
 permissions:
   contents: write  # Nécessaire pour pousser sur gh-pages
-
+ 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+ 
     steps:
       - name: Checkout du repo
         uses: actions/checkout@v4
-
+ 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
+ 
       - name: Générer le dashboard
         env:
           IDFM_API_KEY: ${{ secrets.IDFM_API_KEY }}   # Optionnel — clé IDF Mobilités
         run: python generate.py
-
+ 
       - name: Déployer sur GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
