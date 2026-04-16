@@ -110,7 +110,11 @@ def get_ratp():
 
 # ── Vélib ─────────────────────────────────────────────────────────────────────
 
-VELIB_STATIONS = ["8038", "23010"]
+# Mots-cles a chercher dans le nom des stations (insensible a la casse)
+VELIB_STATIONS = [
+    {"keywords": ["voltaire", "anatole"],  "label": "Voltaire - Anatole France"},
+    {"keywords": ["montaigne"],            "label": "Francois 1er - Montaigne"},
+]
 
 def get_velib():
     try:
@@ -118,37 +122,43 @@ def get_velib():
         info_url   = "https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_information.json"
 
         status_data = fetch(status_url)
-        try:
-            info_data = fetch(info_url)
-            name_map = {str(s["station_id"]): s["name"] for s in info_data["data"]["stations"]}
-        except Exception:
-            name_map = {}
+        info_data   = fetch(info_url)
 
-        stations_raw = {str(s["station_id"]): s for s in status_data["data"]["stations"]}
+        name_map   = {str(s["station_id"]): s["name"] for s in info_data["data"]["stations"]}
+        status_map = {str(s["station_id"]): s         for s in status_data["data"]["stations"]}
 
         results = []
-        for sid in VELIB_STATIONS:
-            s = stations_raw.get(sid)
-            if s:
+        for cfg in VELIB_STATIONS:
+            found_id   = None
+            found_name = cfg["label"]
+            for sid, name in name_map.items():
+                name_lower = name.lower()
+                if all(kw in name_lower for kw in cfg["keywords"]):
+                    found_id   = sid
+                    found_name = name
+                    break
+
+            if found_id and found_id in status_map:
+                s     = status_map[found_id]
                 bikes = s.get("num_bikes_available", 0)
                 docks = s.get("num_docks_available", 0)
                 cap   = bikes + docks or 1
                 results.append({
-                    "ok": True,
-                    "id": sid,
-                    "name": name_map.get(sid, f"Station {sid}"),
-                    "bikes": bikes,
-                    "docks": docks,
-                    "cap": cap,
+                    "ok": True, "id": found_id, "name": found_name,
+                    "bikes": bikes, "docks": docks, "cap": cap,
                     "pct_bikes": round(bikes / cap * 100),
                     "pct_docks": round(docks / cap * 100),
                 })
+                print(f"     Velib OK: {found_name} id={found_id} velos={bikes} places={docks}")
             else:
-                results.append({"ok": False, "id": sid, "name": f"Station {sid}"})
+                print(f"     Velib introuvable: {cfg['label']}")
+                results.append({"ok": False, "id": "?", "name": cfg["label"]})
+
         return results
 
     except Exception as e:
-        return [{"ok": False, "id": sid, "name": f"Station {sid}", "error": str(e)} for sid in VELIB_STATIONS]
+        print(f"     Erreur Velib: {e}")
+        return [{"ok": False, "id": "?", "name": cfg["label"], "error": str(e)} for cfg in VELIB_STATIONS]
 
 
 # ── Génération HTML ───────────────────────────────────────────────────────────
