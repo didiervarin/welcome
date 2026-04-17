@@ -331,9 +331,6 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 .footer{{margin-top:20px;max-width:900px;display:flex;justify-content:space-between;align-items:center}}
 .update-info{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.06em}}
 .next-info{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.06em;text-align:right}}
-.refresh-btn{{background:none;border:1px solid var(--border2);border-radius:8px;color:var(--muted);font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;padding:6px 16px;letter-spacing:.08em;transition:all .2s}}
-.refresh-btn:hover{{border-color:var(--accent);color:var(--accent)}}
-.refresh-btn:disabled{{opacity:.4;cursor:not-allowed}}
 </style>
 </head>
 <body>
@@ -366,39 +363,8 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 
 <div class="footer">
   <div class="update-info">Générée le {jour.lower()} {ts} (heure Paris)</div>
-  <button class="refresh-btn" onclick="refreshDashboard()" id="btn-refresh">↻ Rafraîchir</button>
+  <div class="next-info">Prochaine mise à jour dans ~{next_update_min} min</div>
 </div>
-
-<script>
-async function refreshDashboard() {{
-  const btn = document.getElementById('btn-refresh');
-  btn.disabled = true;
-  btn.textContent = '↻ Lancement…';
-
-  try {{
-    const resp = await fetch('https://api.github.com/repos/didiervarin/welcome/dispatches', {{
-      method: 'POST',
-      headers: {{
-        'Authorization': 'token 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',
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-      }},
-      body: JSON.stringify({{event_type: 'manual-refresh'}})
-    }});
-
-    if (resp.status === 204) {{
-      btn.textContent = '✓ Lancé ! (30s…)';
-      setTimeout(() => location.reload(), 35000);
-    }} else {{
-      btn.textContent = '⚠ Erreur ' + resp.status;
-      btn.disabled = false;
-    }}
-  }} catch(e) {{
-    btn.textContent = '⚠ Erreur réseau';
-    btn.disabled = false;
-  }}
-}}
-</script>
 
 </body>
 </html>"""
