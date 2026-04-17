@@ -412,28 +412,35 @@ def get_cinema():
         # Structure HTML: <h5><a href="/cinema/evenement/...">TITRE</a></h5>
         # suivi de texte avec horaires HH:MM
 
-        # Extraire les blocs par h5
-        blocs = re.split(r'<h5[^>]*>', raw)
+        # Strategie: splitter par h5, prendre le 1er lien <a> comme titre
+        blocs = re.split(r'</?h5[^>]*>', raw)
 
         seen = set()
         seances = []
 
-        for bloc in blocs:
-            # Chercher le titre du film — URL complète ou relative
-            m = re.search(r'href="[^"]*evenement[^"]+">([^<]+)</a>', bloc)
+        for i, bloc in enumerate(blocs):
+            # Chercher n'importe quel lien <a> dans ce bloc h5
+            m = re.search(r'<a[^>]*>([^<]{3,60})</a>', bloc)
             if not m:
                 continue
             titre = m.group(1).strip()
 
+            # Ignorer les titres qui ne ressemblent pas a des films
+            mots_a_ignorer = ["événement", "proposer", "officiel", "accueil",
+                              "cinéma", "théâtre", "programme", "réservation",
+                              "newsletter", "contact", "mentions"]
+            if any(mot in titre.lower() for mot in mots_a_ignorer):
+                continue
+            if len(titre) < 2:
+                continue
+
             if titre in seen:
-                continue  # Deja vu = jour suivant, on ignore
-            # Ignorer les faux positifs du footer
-            if len(titre) > 60 or "événement" in titre.lower() or "proposer" in titre.lower():
                 continue
             seen.add(titre)
 
-            # Extraire les horaires dans ce bloc
-            horaires = re.findall(r'\b(\d{1,2}):(\d{2})\b', bloc)
+            # Les horaires sont dans le bloc SUIVANT (apres le </h5>)
+            next_bloc = blocs[i+1] if i+1 < len(blocs) else ""
+            horaires = re.findall(r'\b(\d{1,2}):(\d{2})\b', next_bloc)
             for h, mn in horaires:
                 heure_min = int(h) * 60 + int(mn)
                 if 19 * 60 <= heure_min <= 21 * 60:
