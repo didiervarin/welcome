@@ -400,79 +400,41 @@ def get_cinema():
     try:
         url = "https://www.offi.fr/cinema/le-village-3373.html"
         req = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-            "Accept": "text/html,application/xhtml+xml",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "fr-FR,fr;q=0.9",
         })
         with urllib.request.urlopen(req, timeout=10) as r:
             html = r.read().decode("utf-8")
 
-        # Trouver le bloc du jour (premier onglet = aujourd'hui)
-        # Les films sont dans des blocs répétés, on prend ceux du premier jour
-        # Structure: titre du film suivi des horaires
-        
-        # Extraire tous les blocs film+horaires
-        # Pattern: nom du film, genre, durée, horaires
-        films_raw = re.findall(
-            r'<h5[^>]*>\s*<a[^>]*>([^<]+)</a>\s*</h5>.*?'
-            r'<p[^>]*>(.*?)</p>.*?'  # genre/durée
-            r'((?:\d{1,2}:\d{2}\s*)+)',
+        # Stratégie: chaque film apparait une fois par jour dans le HTML.
+        # On prend la PREMIERE occurrence de chaque titre = séances d'aujourd'hui.
+        blocs = re.findall(
+            r'<a[^>]*href="/cinema/evenement/[^"]+">([^<]+)</a></h5>(.*?)(?=<h5|<div class="cinema-lieu|$)',
             html, re.DOTALL
         )
 
-        # Méthode alternative plus robuste: chercher les ancres de jour
-        # Le premier onglet (#t_0) correspond à aujourd'hui
-        # Splitter le HTML par les ancres de tabs
-        parts = re.split(r'id="t_\d+"', html)
-        
-        today_block = parts[1] if len(parts) > 1 else ""
-        
-        # Extraire les films du bloc d'aujourd'hui
-        films = []
-        film_blocks = re.findall(
-            r'<h5[^>]*>\s*<a[^>]*>([^<]+)</a>.*?'
-            r'class="[^"]*genre[^"]*"[^>]*>([^<]*)</.*?'
-            r'class="[^"]*duree[^"]*"[^>]*>([^<]*)</.*?'
-            r'((?:\d{1,2}:\d{2}[\s<>/a-z]*)+)',
-            today_block, re.DOTALL | re.IGNORECASE
-        )
-
-        # Parser plus simple: trouver les horaires dans le premier bloc
-        # On cherche les patterns HH:MM entre 19:00 et 21:00
+        seen_titres = set()
         seances = []
-        
-        # Extraire titre + horaires avec regex simple
-        blocs = re.findall(
-            r'<h5[^>]*><a[^>]*>([^<]+)</a></h5>(.*?)(?=<h5|<div class="cinema-infos|$)',
-            today_block, re.DOTALL
-        )
-        
-        for titre, bloc in blocs:
+
+        for titre, reste in blocs:
             titre = titre.strip()
-            horaires_raw = re.findall(r'(\d{1,2}):(\d{2})', bloc)
-            for h, m in horaires_raw:
+            if titre in seen_titres:
+                continue  # 2e occurrence = jour suivant, on ignore
+            seen_titres.add(titre)
+
+            horaires = re.findall(r'(\d{1,2}):(\d{2})', reste)
+            for h, m in horaires:
                 heure_min = int(h) * 60 + int(m)
-                if 19*60 <= heure_min <= 21*60:
-                    seances.append({
-                        "titre": titre,
-                        "horaire": f"{h}:{m}"
-                    })
+                if 19 * 60 <= heure_min <= 21 * 60:
+                    seances.append({"titre": titre, "horaire": f"{h}:{m}"})
 
-        # Dédoublonner
-        seen = set()
-        seances_uniq = []
-        for s in seances:
-            key = (s["titre"], s["horaire"])
-            if key not in seen:
-                seen.add(key)
-                seances_uniq.append(s)
-
-        seances_uniq.sort(key=lambda x: x["horaire"])
-        print(f"     Cinéma: {len(seances_uniq)} séances trouvées entre 19h et 21h")
-        return {"ok": True, "seances": seances_uniq}
+        seances.sort(key=lambda x: x["horaire"])
+        print(f"     Cinema: {len(seances)} seances trouvees entre 19h et 21h")
+        return {"ok": True, "seances": seances}
 
     except Exception as e:
-        print(f"     Erreur cinéma: {e}")
+        print(f"     Erreur cinema: {e}")
         return {"ok": False, "error": str(e), "seances": []}
 
 # ── Main ──────────────────────────────────────────────────────────────────────
