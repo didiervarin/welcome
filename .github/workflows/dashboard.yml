@@ -5,6 +5,8 @@ on:
     # Toutes les 15 minutes (00, 15, 30, 45), entre 6h et 23h UTC (8h-1h heure Paris)
     - cron: '0,15,30,45 6-23 * * *'
   workflow_dispatch: # Lancement manuel depuis l'onglet Actions
+  repository_dispatch:
+    types: [manual-refresh]  # Déclenché par le bouton Refresh de la page
 
 permissions:
   contents: write  # Nécessaire pour pousser sur gh-pages
