@@ -110,7 +110,11 @@ def get_ratp():
 
 # ── Vélib ─────────────────────────────────────────────────────────────────────
 
-VELIB_STATIONS = ["8038", "23010"]
+# Mots-cles a chercher dans le nom des stations (insensible a la casse)
+VELIB_STATIONS = [
+    {"keywords": ["voltaire", "anatole"],  "label": "Voltaire - Anatole France"},
+    {"keywords": ["montaigne"],            "label": "Francois 1er - Montaigne"},
+]
 
 def get_velib():
     try:
@@ -118,37 +122,43 @@ def get_velib():
         info_url   = "https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_information.json"
 
         status_data = fetch(status_url)
-        try:
-            info_data = fetch(info_url)
-            name_map = {str(s["station_id"]): s["name"] for s in info_data["data"]["stations"]}
-        except Exception:
-            name_map = {}
+        info_data   = fetch(info_url)
 
-        stations_raw = {str(s["station_id"]): s for s in status_data["data"]["stations"]}
+        name_map   = {str(s["station_id"]): s["name"] for s in info_data["data"]["stations"]}
+        status_map = {str(s["station_id"]): s         for s in status_data["data"]["stations"]}
 
         results = []
-        for sid in VELIB_STATIONS:
-            s = stations_raw.get(sid)
-            if s:
+        for cfg in VELIB_STATIONS:
+            found_id   = None
+            found_name = cfg["label"]
+            for sid, name in name_map.items():
+                name_lower = name.lower()
+                if all(kw in name_lower for kw in cfg["keywords"]):
+                    found_id   = sid
+                    found_name = name
+                    break
+
+            if found_id and found_id in status_map:
+                s     = status_map[found_id]
                 bikes = s.get("num_bikes_available", 0)
                 docks = s.get("num_docks_available", 0)
                 cap   = bikes + docks or 1
                 results.append({
-                    "ok": True,
-                    "id": sid,
-                    "name": name_map.get(sid, f"Station {sid}"),
-                    "bikes": bikes,
-                    "docks": docks,
-                    "cap": cap,
+                    "ok": True, "id": found_id, "name": found_name,
+                    "bikes": bikes, "docks": docks, "cap": cap,
                     "pct_bikes": round(bikes / cap * 100),
                     "pct_docks": round(docks / cap * 100),
                 })
+                print(f"     Velib OK: {found_name} id={found_id} velos={bikes} places={docks}")
             else:
-                results.append({"ok": False, "id": sid, "name": f"Station {sid}"})
+                print(f"     Velib introuvable: {cfg['label']}")
+                results.append({"ok": False, "id": "?", "name": cfg["label"]})
+
         return results
 
     except Exception as e:
-        return [{"ok": False, "id": sid, "name": f"Station {sid}", "error": str(e)} for sid in VELIB_STATIONS]
+        print(f"     Erreur Velib: {e}")
+        return [{"ok": False, "id": "?", "name": cfg["label"], "error": str(e)} for cfg in VELIB_STATIONS]
 
 
 # ── Génération HTML ───────────────────────────────────────────────────────────
@@ -238,6 +248,13 @@ def velib_html(stations):
 
 def build_html(meteo, ratp, velib):
     ts = now.strftime("%-d %B %Y · %H h %M")
+    # Calcul des minutes avant la prochaine échéance (00, 15, 30, 45)
+    m = now.minute
+    next_slot = ((m // 15) + 1) * 15
+    if next_slot == 60:
+        next_update_min = 60 - m
+    else:
+        next_update_min = next_slot - m
     jours = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"]
     jour = jours[now.weekday()]
 
@@ -246,7 +263,7 @@ def build_html(meteo, ratp, velib):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="refresh" content="3600">
+<meta http-equiv="refresh" content="900">
 <title>Paris · Dashboard</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700&display=swap');
@@ -314,6 +331,9 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 .footer{{margin-top:20px;max-width:900px;display:flex;justify-content:space-between;align-items:center}}
 .update-info{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.06em}}
 .next-info{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.06em;text-align:right}}
+.refresh-btn{{background:none;border:1px solid var(--border2);border-radius:8px;color:var(--muted);font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;padding:6px 16px;letter-spacing:.08em;transition:all .2s}}
+.refresh-btn:hover{{border-color:var(--accent);color:var(--accent)}}
+.refresh-btn:disabled{{opacity:.4;cursor:not-allowed}}
 </style>
 </head>
 <body>
@@ -346,8 +366,39 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 
 <div class="footer">
   <div class="update-info">Générée le {jour.lower()} {ts} (heure Paris)</div>
-  <div class="next-info">Prochaine mise à jour automatique dans ~1 h</div>
+  <button class="refresh-btn" onclick="refreshDashboard()" id="btn-refresh">↻ Rafraîchir</button>
 </div>
+
+<script>
+async function refreshDashboard() {{
+  const btn = document.getElementById('btn-refresh');
+  btn.disabled = true;
+  btn.textContent = '↻ Lancement…';
+
+  try {{
+    const resp = await fetch('https://api.github.com/repos/didiervarin/welcome/dispatches', {{
+      method: 'POST',
+      headers: {{
+        'Authorization': 'token VOTRE_TOKEN',
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      }},
+      body: JSON.stringify({{event_type: 'manual-refresh'}})
+    }});
+
+    if (resp.status === 204) {{
+      btn.textContent = '✓ Lancé ! (30s…)';
+      setTimeout(() => location.reload(), 35000);
+    }} else {{
+      btn.textContent = '⚠ Erreur ' + resp.status;
+      btn.disabled = false;
+    }}
+  }} catch(e) {{
+    btn.textContent = '⚠ Erreur réseau';
+    btn.disabled = false;
+  }}
+}}
+</script>
 
 </body>
 </html>"""
