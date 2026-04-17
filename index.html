@@ -71,9 +71,6 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
 .footer{margin-top:20px;max-width:900px;display:flex;justify-content:space-between;align-items:center}
 .update-info{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.06em}
 .next-info{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.06em;text-align:right}
-.refresh-btn{background:none;border:1px solid var(--border2);border-radius:8px;color:var(--muted);font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;padding:6px 16px;letter-spacing:.08em;transition:all .2s}
-.refresh-btn:hover{border-color:var(--accent);color:var(--accent)}
-.refresh-btn:disabled{opacity:.4;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -84,7 +81,7 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
     <div class="subtitle">Levallois · 8e · RATP · Vélib</div>
   </div>
   <div class="datetime">
-    <div class="time-big">15 h 56</div>
+    <div class="time-big">16 h 44</div>
     <div class="date-str">Vendredi 17 April 2026</div>
   </div>
 </div>
@@ -145,19 +142,19 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
         <div class="station-name">Voltaire - Anatole France</div>
         <div class="station-stats">
           <div class="stat">
-            <div class="stat-val bikes">13</div>
+            <div class="stat-val bikes">3</div>
             <div class="stat-lbl">Vélos</div>
           </div>
           <div class="stat-sep"></div>
           <div class="stat">
-            <div class="stat-val docks">14</div>
+            <div class="stat-val docks">24</div>
             <div class="stat-lbl">Places</div>
           </div>
         </div>
         <div class="velib-bar-wrap">
           <div class="velib-bar-track">
-            <div class="velib-bar-bikes" style="width:48%"></div>
-            <div class="velib-bar-docks" style="width:52%"></div>
+            <div class="velib-bar-bikes" style="width:11%"></div>
+            <div class="velib-bar-docks" style="width:89%"></div>
           </div>
         </div>
       </div>
@@ -166,19 +163,19 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
         <div class="station-name">François 1er - Montaigne</div>
         <div class="station-stats">
           <div class="stat">
-            <div class="stat-val bikes">36</div>
+            <div class="stat-val bikes">35</div>
             <div class="stat-lbl">Vélos</div>
           </div>
           <div class="stat-sep"></div>
           <div class="stat">
-            <div class="stat-val docks">16</div>
+            <div class="stat-val docks">17</div>
             <div class="stat-lbl">Places</div>
           </div>
         </div>
         <div class="velib-bar-wrap">
           <div class="velib-bar-track">
-            <div class="velib-bar-bikes" style="width:69%"></div>
-            <div class="velib-bar-docks" style="width:31%"></div>
+            <div class="velib-bar-bikes" style="width:67%"></div>
+            <div class="velib-bar-docks" style="width:33%"></div>
           </div>
         </div>
       </div></div>
@@ -186,40 +183,9 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
 </div>
 
 <div class="footer">
-  <div class="update-info">Générée le vendredi 17 April 2026 · 15 h 56 (heure Paris)</div>
-  <button class="refresh-btn" onclick="refreshDashboard()" id="btn-refresh">↻ Rafraîchir</button>
+  <div class="update-info">Générée le vendredi 17 April 2026 · 16 h 44 (heure Paris)</div>
+  <div class="next-info">Prochaine mise à jour dans ~1 min</div>
 </div>
-
-<script>
-async function refreshDashboard() {
-  const btn = document.getElementById('btn-refresh');
-  btn.disabled = true;
-  btn.textContent = '↻ Lancement…';
-
-  try {
-    const resp = await fetch('https://api.github.com/repos/didiervarin/welcome/dispatches', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'token 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',
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({event_type: 'manual-refresh'})
-    });
-
-    if (resp.status === 204) {
-      btn.textContent = '✓ Lancé ! (30s…)';
-      setTimeout(() => location.reload(), 35000);
-    } else {
-      btn.textContent = '⚠ Erreur ' + resp.status;
-      btn.disabled = false;
-    }
-  } catch(e) {
-    btn.textContent = '⚠ Erreur réseau';
-    btn.disabled = false;
-  }
-}
-</script>
 
 </body>
 </html>
