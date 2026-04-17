@@ -396,7 +396,7 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 # ── Cinéma Le Village ─────────────────────────────────────────────────────────
 
 def get_cinema():
-    """Scrape offi.fr et retourne les séances du jour entre 19h et 21h."""
+    """Scrape offi.fr et retourne les seances du jour entre 19h et 21h."""
     try:
         url = "https://www.offi.fr/cinema/le-village-3373.html"
         req = urllib.request.Request(url, headers={
@@ -405,32 +405,46 @@ def get_cinema():
             "Accept-Language": "fr-FR,fr;q=0.9",
         })
         with urllib.request.urlopen(req, timeout=10) as r:
-            html = r.read().decode("utf-8")
+            raw = r.read().decode("utf-8")
 
-        # Stratégie: chaque film apparait une fois par jour dans le HTML.
-        # On prend la PREMIERE occurrence de chaque titre = séances d'aujourd'hui.
-        blocs = re.findall(
-            r'<a[^>]*href="/cinema/evenement/[^"]+">([^<]+)</a></h5>(.*?)(?=<h5|<div class="cinema-lieu|$)',
-            html, re.DOTALL
-        )
+        # Convertir le HTML en texte lisible
+        # Extraire le texte entre balises h5 (titres films) et les horaires
+        # Structure HTML: <h5><a href="/cinema/evenement/...">TITRE</a></h5>
+        # suivi de texte avec horaires HH:MM
 
-        seen_titres = set()
+        # Supprimer les balises img, liens images etc
+        raw = re.sub(r'<img[^>]+>', '', raw)
+        raw = re.sub(r'<a[^>]*href="[^"]*\.jpg[^"]*"[^>]*>.*?</a>', '', raw, flags=re.DOTALL)
+
+        # Extraire les blocs: titre de film + contenu jusqu'au prochain film
+        blocs = re.split(r'<h5[^>]*>', raw)
+
+        seen = set()
         seances = []
 
-        for titre, reste in blocs:
-            titre = titre.strip()
-            if titre in seen_titres:
-                continue  # 2e occurrence = jour suivant, on ignore
-            seen_titres.add(titre)
+        for bloc in blocs:
+            # Chercher le titre du film (lien vers /cinema/evenement/)
+            m = re.search(r'href="/cinema/evenement/[^"]+">([^<]+)</a>', bloc)
+            if not m:
+                continue
+            titre = m.group(1).strip()
 
-            horaires = re.findall(r'(\d{1,2}):(\d{2})', reste)
-            for h, m in horaires:
-                heure_min = int(h) * 60 + int(m)
+            if titre in seen:
+                continue  # Deja vu = jour suivant, on ignore
+            seen.add(titre)
+
+            # Extraire les horaires dans ce bloc
+            horaires = re.findall(r'\b(\d{1,2}):(\d{2})\b', bloc)
+            for h, mn in horaires:
+                heure_min = int(h) * 60 + int(mn)
                 if 19 * 60 <= heure_min <= 21 * 60:
-                    seances.append({"titre": titre, "horaire": f"{h}:{m}"})
+                    seances.append({"titre": titre, "horaire": f"{h}:{mn}"})
 
         seances.sort(key=lambda x: x["horaire"])
         print(f"     Cinema: {len(seances)} seances trouvees entre 19h et 21h")
+        if seances:
+            for s in seances:
+                print(f"       {s['horaire']} {s['titre']}")
         return {"ok": True, "seances": seances}
 
     except Exception as e:
