@@ -30,9 +30,8 @@ jobs:
         run: python generate.py
 
       - name: Déployer sur GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
-          publish_branch: gh-pages
-          commit_message: "Dashboard mis à jour — ${{ github.event.repository.updated_at }}"
+          folder: docs
+          branch: gh-pages
+          commit-message: "Dashboard mis à jour"
