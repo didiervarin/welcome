@@ -441,6 +441,12 @@ def get_cinema():
                     seances.append({"titre": titre, "horaire": f"{h}:{mn}"})
 
         seances.sort(key=lambda x: x["horaire"])
+        # Debug: afficher ce que le parser trouve
+        blocs_count = len(re.findall(r'<h5[^>]*>', raw))
+        liens_count = len(re.findall(r'href="/cinema/evenement/[^"]+">([^<]+)</a>', raw))
+        horaires_all = re.findall(r'\b(\d{1,2}):(\d{2})\b', raw)
+        print(f"     Debug: {blocs_count} balises h5, {liens_count} liens films")
+        print(f"     Debug horaires bruts: {[f'{h}:{m}' for h,m in horaires_all[:15]]}")
         print(f"     Cinema: {len(seances)} seances trouvees entre 19h et 21h")
         if seances:
             for s in seances:
