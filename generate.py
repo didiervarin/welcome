@@ -8,6 +8,7 @@ import json
 import urllib.request
 import urllib.error
 import os
+import re
 from datetime import datetime, timezone, timedelta
 
 PARIS_TZ = timezone(timedelta(hours=2))  # CEST (été)
@@ -246,7 +247,23 @@ def velib_html(stations):
     return '<div class="velib-grid">' + "".join(cards) + "</div>"
 
 
-def build_html(meteo, ratp, velib):
+
+def cinema_html(cinema):
+    if not cinema["ok"]:
+        return f'<div class="error">Cinéma indisponible</div>'
+    seances = cinema["seances"]
+    if not seances:
+        return '<div class="error">Aucune séance entre 19h et 21h ce soir</div>'
+    rows = []
+    for s in seances:
+        rows.append(f"""
+      <div class="cinema-seance">
+        <div class="cinema-heure">{s['horaire']}</div>
+        <div class="cinema-titre">{s['titre']}</div>
+      </div>""")
+    return '<div class="cinema-list">' + "".join(rows) + '</div>'
+
+def build_html(meteo, ratp, velib, cinema):
     ts = now.strftime("%-d %B %Y · %H h %M")
     # Calcul des minutes avant la prochaine échéance (00, 15, 30, 45)
     m = now.minute
@@ -328,6 +345,7 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 .velib-bar-bikes{{height:100%;background:var(--accent);border-radius:2px}}
 .velib-bar-docks{{height:100%;background:var(--accent2);border-radius:2px}}
 .error{{color:var(--red);font-size:11px;font-family:'DM Mono',monospace;padding:4px 0}}
+.cinema-list{{display:flex;flex-direction:column;gap:8px}}.cinema-seance{{display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid var(--border)}}.cinema-seance:last-child{{border-bottom:none}}.cinema-heure{{font-family:'DM Mono',monospace;font-size:16px;color:var(--accent);font-weight:500;min-width:44px}}.cinema-titre{{font-size:13px;font-weight:500;color:var(--text)}}
 .footer{{margin-top:20px;max-width:900px;display:flex;justify-content:space-between;align-items:center}}
 .update-info{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.06em}}
 .next-info{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.06em;text-align:right}}
@@ -338,7 +356,7 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 <div class="header">
   <div class="header-left">
     <div class="title">Paris · Dashboard</div>
-    <div class="subtitle">Levallois · 8e · RATP · Vélib</div>
+    <div class="subtitle">Levallois · 8e · RATP · Vélib · Cinéma</div>
   </div>
   <div class="datetime">
     <div class="time-big">{now.strftime('%H h %M')}</div>
@@ -359,6 +377,10 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
     <div class="card-label">Vélib · Stations 8038 &amp; 23010</div>
     {velib_html(velib)}
   </div>
+  <div class="card full">
+    <div class="card-label">Cinéma Le Village · Séances 19h–21h</div>
+    {cinema_html(cinema)}
+  </div>
 </div>
 
 <div class="footer">
@@ -369,6 +391,89 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 </body>
 </html>"""
 
+
+
+# ── Cinéma Le Village ─────────────────────────────────────────────────────────
+
+def get_cinema():
+    """Scrape offi.fr et retourne les séances du jour entre 19h et 21h."""
+    try:
+        url = "https://www.offi.fr/cinema/le-village-3373.html"
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+            "Accept": "text/html,application/xhtml+xml",
+            "Accept-Language": "fr-FR,fr;q=0.9",
+        })
+        with urllib.request.urlopen(req, timeout=10) as r:
+            html = r.read().decode("utf-8")
+
+        # Trouver le bloc du jour (premier onglet = aujourd'hui)
+        # Les films sont dans des blocs répétés, on prend ceux du premier jour
+        # Structure: titre du film suivi des horaires
+        
+        # Extraire tous les blocs film+horaires
+        # Pattern: nom du film, genre, durée, horaires
+        films_raw = re.findall(
+            r'<h5[^>]*>\s*<a[^>]*>([^<]+)</a>\s*</h5>.*?'
+            r'<p[^>]*>(.*?)</p>.*?'  # genre/durée
+            r'((?:\d{1,2}:\d{2}\s*)+)',
+            html, re.DOTALL
+        )
+
+        # Méthode alternative plus robuste: chercher les ancres de jour
+        # Le premier onglet (#t_0) correspond à aujourd'hui
+        # Splitter le HTML par les ancres de tabs
+        parts = re.split(r'id="t_\d+"', html)
+        
+        today_block = parts[1] if len(parts) > 1 else ""
+        
+        # Extraire les films du bloc d'aujourd'hui
+        films = []
+        film_blocks = re.findall(
+            r'<h5[^>]*>\s*<a[^>]*>([^<]+)</a>.*?'
+            r'class="[^"]*genre[^"]*"[^>]*>([^<]*)</.*?'
+            r'class="[^"]*duree[^"]*"[^>]*>([^<]*)</.*?'
+            r'((?:\d{1,2}:\d{2}[\s<>/a-z]*)+)',
+            today_block, re.DOTALL | re.IGNORECASE
+        )
+
+        # Parser plus simple: trouver les horaires dans le premier bloc
+        # On cherche les patterns HH:MM entre 19:00 et 21:00
+        seances = []
+        
+        # Extraire titre + horaires avec regex simple
+        blocs = re.findall(
+            r'<h5[^>]*><a[^>]*>([^<]+)</a></h5>(.*?)(?=<h5|<div class="cinema-infos|$)',
+            today_block, re.DOTALL
+        )
+        
+        for titre, bloc in blocs:
+            titre = titre.strip()
+            horaires_raw = re.findall(r'(\d{1,2}):(\d{2})', bloc)
+            for h, m in horaires_raw:
+                heure_min = int(h) * 60 + int(m)
+                if 19*60 <= heure_min <= 21*60:
+                    seances.append({
+                        "titre": titre,
+                        "horaire": f"{h}:{m}"
+                    })
+
+        # Dédoublonner
+        seen = set()
+        seances_uniq = []
+        for s in seances:
+            key = (s["titre"], s["horaire"])
+            if key not in seen:
+                seen.add(key)
+                seances_uniq.append(s)
+
+        seances_uniq.sort(key=lambda x: x["horaire"])
+        print(f"     Cinéma: {len(seances_uniq)} séances trouvées entre 19h et 21h")
+        return {"ok": True, "seances": seances_uniq}
+
+    except Exception as e:
+        print(f"     Erreur cinéma: {e}")
+        return {"ok": False, "error": str(e), "seances": []}
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
@@ -387,7 +492,11 @@ if __name__ == "__main__":
     velib = get_velib()
     print(f"     {velib}")
 
-    html = build_html(meteo, ratp, velib)
+    print("  → Cinéma…")
+    cinema = get_cinema()
+    print(f"     {cinema}")
+
+    html = build_html(meteo, ratp, velib, cinema)
 
     os.makedirs("docs", exist_ok=True)
     with open("docs/index.html", "w", encoding="utf-8") as f:
