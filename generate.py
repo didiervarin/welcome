@@ -379,7 +379,7 @@ async function refreshDashboard() {{
     const resp = await fetch('https://api.github.com/repos/didiervarin/welcome/dispatches', {{
       method: 'POST',
       headers: {{
-        'Authorization': 'token VOTRE_TOKEN',
+        'Authorization': 'token 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',
         'Accept': 'application/vnd.github.v3+json',
         'Content-Type': 'application/json',
       }},
