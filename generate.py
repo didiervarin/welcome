@@ -412,19 +412,15 @@ def get_cinema():
         # Structure HTML: <h5><a href="/cinema/evenement/...">TITRE</a></h5>
         # suivi de texte avec horaires HH:MM
 
-        # Supprimer les balises img, liens images etc
-        raw = re.sub(r'<img[^>]+>', '', raw)
-        raw = re.sub(r'<a[^>]*href="[^"]*\.jpg[^"]*"[^>]*>.*?</a>', '', raw, flags=re.DOTALL)
-
-        # Extraire les blocs: titre de film + contenu jusqu'au prochain film
+        # Extraire les blocs par h5
         blocs = re.split(r'<h5[^>]*>', raw)
 
         seen = set()
         seances = []
 
         for bloc in blocs:
-            # Chercher le titre du film (lien vers /cinema/evenement/)
-            m = re.search(r'href="/cinema/evenement/[^"]+">([^<]+)</a>', bloc)
+            # Chercher le titre du film — URL complète ou relative
+            m = re.search(r'href="[^"]*evenement[^"]+">([^<]+)</a>', bloc)
             if not m:
                 continue
             titre = m.group(1).strip()
