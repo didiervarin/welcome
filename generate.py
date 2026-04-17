@@ -427,6 +427,9 @@ def get_cinema():
 
             if titre in seen:
                 continue  # Deja vu = jour suivant, on ignore
+            # Ignorer les faux positifs du footer
+            if len(titre) > 60 or "événement" in titre.lower() or "proposer" in titre.lower():
+                continue
             seen.add(titre)
 
             # Extraire les horaires dans ce bloc
