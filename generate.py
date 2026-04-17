@@ -3,21 +3,21 @@
 Génère dashboard.html avec les données météo, RATP et Vélib en temps réel.
 Lancé par GitHub Actions, pousse le résultat sur GitHub Pages.
 """
- 
+
 import json
 import urllib.request
 import urllib.error
 import os
 from datetime import datetime, timezone, timedelta
- 
+
 PARIS_TZ = timezone(timedelta(hours=2))  # CEST (été)
 now = datetime.now(PARIS_TZ)
 heure = now.hour
 matin = 0 <= heure <= 11
- 
- 
+
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
- 
+
 def fetch(url, headers=None):
     h = {"User-Agent": "Paris-Dashboard/1.0", "Accept": "application/json"}
     if headers:
@@ -25,8 +25,8 @@ def fetch(url, headers=None):
     req = urllib.request.Request(url, headers=h)
     with urllib.request.urlopen(req, timeout=10) as r:
         return json.loads(r.read().decode())
- 
- 
+
+
 def weather_icon(code):
     if code == 0:   return "☀️"
     if code <= 2:   return "🌤️"
@@ -36,8 +36,8 @@ def weather_icon(code):
     if code <= 77:  return "❄️"
     if code <= 82:  return "🌦️"
     return "⛈️"
- 
- 
+
+
 def weather_desc(code):
     m = {
         0: "Ciel dégagé", 1: "Principalement dégagé", 2: "Partiellement nuageux",
@@ -49,16 +49,16 @@ def weather_desc(code):
         95: "Orage", 99: "Orage violent",
     }
     return m.get(code, "Conditions inconnues")
- 
- 
+
+
 # ── Météo ─────────────────────────────────────────────────────────────────────
- 
+
 def get_meteo():
     lat  = 48.8924 if matin else 48.8737
     lon  = 2.2872  if matin else 2.3088
     lieu = "Levallois-Perret" if matin else "Paris 8e"
     slot = "0 h – 11 h 59"   if matin else "12 h – 23 h 59"
- 
+
     try:
         url = (
             f"https://api.open-meteo.com/v1/forecast"
@@ -78,16 +78,16 @@ def get_meteo():
         }
     except Exception as e:
         return {"ok": False, "error": str(e), "lieu": lieu, "slot": slot}
- 
- 
+
+
 # ── RATP ──────────────────────────────────────────────────────────────────────
- 
+
 RATP_LINES = {
     "1": {"ref": "line:IDFM:C01371", "name": "La Défense ↔ Vincennes",       "color": "#FFBE00", "text": "#1a1200"},
     "2": {"ref": "line:IDFM:C01372", "name": "Nation ↔ Porte Dauphine",      "color": "#003CA6", "text": "#ffffff"},
     "3": {"ref": "line:IDFM:C01373", "name": "Pont de Levallois ↔ Gallieni", "color": "#837902", "text": "#ffffff"},
 }
- 
+
 def get_ratp():
     api_key = os.environ.get("IDFM_API_KEY", "")
     results = []
@@ -106,27 +106,27 @@ def get_ratp():
                 print(f"RATP ligne {num}: {e}")
         results.append({"num": num, "status": status, "msg": msg, **cfg})
     return results
- 
- 
+
+
 # ── Vélib ─────────────────────────────────────────────────────────────────────
- 
+
 # Mots-cles a chercher dans le nom des stations (insensible a la casse)
 VELIB_STATIONS = [
     {"keywords": ["voltaire", "anatole"],  "label": "Voltaire - Anatole France"},
     {"keywords": ["montaigne"],            "label": "Francois 1er - Montaigne"},
 ]
- 
+
 def get_velib():
     try:
         status_url = "https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_status.json"
         info_url   = "https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_information.json"
- 
+
         status_data = fetch(status_url)
         info_data   = fetch(info_url)
- 
+
         name_map   = {str(s["station_id"]): s["name"] for s in info_data["data"]["stations"]}
         status_map = {str(s["station_id"]): s         for s in status_data["data"]["stations"]}
- 
+
         results = []
         for cfg in VELIB_STATIONS:
             found_id   = None
@@ -137,7 +137,7 @@ def get_velib():
                     found_id   = sid
                     found_name = name
                     break
- 
+
             if found_id and found_id in status_map:
                 s     = status_map[found_id]
                 bikes = s.get("num_bikes_available", 0)
@@ -153,25 +153,25 @@ def get_velib():
             else:
                 print(f"     Velib introuvable: {cfg['label']}")
                 results.append({"ok": False, "id": "?", "name": cfg["label"]})
- 
+
         return results
- 
+
     except Exception as e:
         print(f"     Erreur Velib: {e}")
         return [{"ok": False, "id": "?", "name": cfg["label"], "error": str(e)} for cfg in VELIB_STATIONS]
- 
- 
+
+
 # ── Génération HTML ───────────────────────────────────────────────────────────
- 
+
 def meteo_html(m):
     if not m["ok"]:
         return f'<div class="error">⚠ Météo indisponible — {m.get("error","")}</div>'
- 
+
     icon = weather_icon(m["code"])
     desc = weather_desc(m["code"])
     rain = m["rain"]
     bar_class = "bar-rain" if rain >= 40 else "bar-low"
- 
+
     return f"""
     <div class="meteo-main">
       <div class="meteo-icon">{icon}</div>
@@ -191,8 +191,8 @@ def meteo_html(m):
         <div class="bar-fill {bar_class}" style="width:{rain}%"></div>
       </div>
     </div>"""
- 
- 
+
+
 def ratp_html(lines):
     rows = []
     for l in lines:
@@ -206,8 +206,8 @@ def ratp_html(lines):
         </div>
       </div>""")
     return '<div class="ratp-lines">' + "".join(rows) + "</div>"
- 
- 
+
+
 def velib_html(stations):
     cards = []
     for s in stations:
@@ -219,7 +219,7 @@ def velib_html(stations):
         <div class="error">Station introuvable</div>
       </div>""")
             continue
- 
+
         cards.append(f"""
       <div class="station">
         <div class="station-id"># {s['id']}</div>
@@ -242,10 +242,10 @@ def velib_html(stations):
           </div>
         </div>
       </div>""")
- 
+
     return '<div class="velib-grid">' + "".join(cards) + "</div>"
- 
- 
+
+
 def build_html(meteo, ratp, velib):
     ts = now.strftime("%-d %B %Y · %H h %M")
     # Calcul des minutes avant la prochaine échéance (00, 15, 30, 45)
@@ -257,7 +257,7 @@ def build_html(meteo, ratp, velib):
         next_update_min = next_slot - m
     jours = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"]
     jour = jours[now.weekday()]
- 
+
     return f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -331,10 +331,13 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 .footer{{margin-top:20px;max-width:900px;display:flex;justify-content:space-between;align-items:center}}
 .update-info{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.06em}}
 .next-info{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.06em;text-align:right}}
+.refresh-btn{{background:none;border:1px solid var(--border2);border-radius:8px;color:var(--muted);font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;padding:6px 16px;letter-spacing:.08em;transition:all .2s}}
+.refresh-btn:hover{{border-color:var(--accent);color:var(--accent)}}
+.refresh-btn:disabled{{opacity:.4;cursor:not-allowed}}
 </style>
 </head>
 <body>
- 
+
 <div class="header">
   <div class="header-left">
     <div class="title">Paris · Dashboard</div>
@@ -345,7 +348,7 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
     <div class="date-str">{jour} {ts.split('·')[0].strip()}</div>
   </div>
 </div>
- 
+
 <div class="grid">
   <div class="card">
     <div class="card-label">Météo</div>
@@ -360,37 +363,68 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
     {velib_html(velib)}
   </div>
 </div>
- 
+
 <div class="footer">
   <div class="update-info">Générée le {jour.lower()} {ts} (heure Paris)</div>
-  <div class="next-info">Prochaine mise à jour dans ~{next_update_min} min</div>
+  <button class="refresh-btn" onclick="refreshDashboard()" id="btn-refresh">↻ Rafraîchir</button>
 </div>
- 
+
+<script>
+async function refreshDashboard() {{
+  const btn = document.getElementById('btn-refresh');
+  btn.disabled = true;
+  btn.textContent = '↻ Lancement…';
+
+  try {{
+    const resp = await fetch('https://api.github.com/repos/didiervarin/welcome/dispatches', {{
+      method: 'POST',
+      headers: {{
+        'Authorization': 'token VOTRE_TOKEN',
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      }},
+      body: JSON.stringify({{event_type: 'manual-refresh'}})
+    }});
+
+    if (resp.status === 204) {{
+      btn.textContent = '✓ Lancé ! (30s…)';
+      setTimeout(() => location.reload(), 35000);
+    }} else {{
+      btn.textContent = '⚠ Erreur ' + resp.status;
+      btn.disabled = false;
+    }}
+  }} catch(e) {{
+    btn.textContent = '⚠ Erreur réseau';
+    btn.disabled = false;
+  }}
+}}
+</script>
+
 </body>
 </html>"""
- 
- 
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
- 
+
 if __name__ == "__main__":
     print(f"[{now.strftime('%H:%M')}] Génération du dashboard…")
- 
+
     print("  → Météo…")
     meteo = get_meteo()
     print(f"     {meteo}")
- 
+
     print("  → RATP…")
     ratp = get_ratp()
     print(f"     {ratp}")
- 
+
     print("  → Vélib…")
     velib = get_velib()
     print(f"     {velib}")
- 
+
     html = build_html(meteo, ratp, velib)
- 
+
     os.makedirs("docs", exist_ok=True)
     with open("docs/index.html", "w", encoding="utf-8") as f:
         f.write(html)
- 
+
     print("  ✓ docs/index.html généré")
