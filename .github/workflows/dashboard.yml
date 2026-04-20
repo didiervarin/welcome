@@ -29,6 +29,8 @@ jobs:
       - name: Générer le dashboard
         env:
           IDFM_API_KEY: ${{ secrets.IDFM_API_KEY }}   # Optionnel — clé IDF Mobilités
+          ICLOUD_USER: ${{ secrets.ICLOUD_USER }}
+          ICLOUD_PASSWORD: ${{ secrets.ICLOUD_PASSWORD }}
         run: python generate.py
 
       - name: Déployer sur GitHub Pages
