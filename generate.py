@@ -248,6 +248,27 @@ def velib_html(stations):
 
 
 
+
+def agenda_html(agenda):
+    if not agenda["ok"]:
+        return f'<div class="error">Agenda indisponible — {agenda.get("error","")}</div>'
+    events = agenda["events"]
+    if not events:
+        return '<div class="error">Aucun événement aujourd\'hui ni demain</div>'
+
+    html = ""
+    jour_courant = ""
+    for e in events:
+        if e["jour"] != jour_courant:
+            jour_courant = e["jour"]
+            html += f'<div class="agenda-jour">{jour_courant}</div>'
+        html += f"""
+      <div class="agenda-event">
+        <div class="agenda-heure">{e["horaire"]}</div>
+        <div class="agenda-titre">{e["titre"]}</div>
+      </div>"""
+    return '<div class="agenda-list">' + html + '</div>'
+
 def cinema_html(cinema):
     if not cinema["ok"]:
         return f'<div class="error">Cinéma indisponible</div>'
@@ -263,7 +284,7 @@ def cinema_html(cinema):
       </div>""")
     return '<div class="cinema-list">' + "".join(rows) + '</div>'
 
-def build_html(meteo, ratp, velib, cinema):
+def build_html(meteo, ratp, velib, cinema, agenda):
     ts = now.strftime("%-d %B %Y · %H h %M")
     # Calcul des minutes avant la prochaine échéance (00, 15, 30, 45)
     m = now.minute
@@ -345,6 +366,7 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 .velib-bar-bikes{{height:100%;background:var(--accent);border-radius:2px}}
 .velib-bar-docks{{height:100%;background:var(--accent2);border-radius:2px}}
 .error{{color:var(--red);font-size:11px;font-family:'DM Mono',monospace;padding:4px 0}}
+.agenda-list{{display:flex;flex-direction:column;gap:6px}}.agenda-jour{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;margin-top:8px;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border)}}.agenda-jour:first-child{{margin-top:0}}.agenda-event{{display:flex;align-items:center;gap:12px;padding:4px 0}}.agenda-heure{{font-family:'DM Mono',monospace;font-size:14px;color:var(--accent2);font-weight:500;min-width:44px}}.agenda-titre{{font-size:12px;color:var(--text);font-weight:500}}
 .cinema-list{{display:flex;flex-direction:column;gap:8px}}.cinema-seance{{display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid var(--border)}}.cinema-seance:last-child{{border-bottom:none}}.cinema-heure{{font-family:'DM Mono',monospace;font-size:16px;color:var(--accent);font-weight:500;min-width:44px}}.cinema-titre{{font-size:13px;font-weight:500;color:var(--text)}}
 .footer{{margin-top:20px;max-width:900px;display:flex;justify-content:space-between;align-items:center}}
 .update-info{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.06em}}
@@ -356,7 +378,7 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 <div class="header">
   <div class="header-left">
     <div class="title">Paris · Dashboard</div>
-    <div class="subtitle">Levallois · 8e · RATP · Vélib · Cinéma</div>
+    <div class="subtitle">Levallois · 8e · RATP · Vélib · Cinéma · Agenda</div>
   </div>
   <div class="datetime">
     <div class="time-big">{now.strftime('%H h %M')}</div>
@@ -378,6 +400,10 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
     {velib_html(velib)}
   </div>
   <div class="card full">
+    <div class="card-label">Agenda · Aujourd'hui &amp; Demain</div>
+    {agenda_html(agenda)}
+  </div>
+  <div class="card full">
     <div class="card-label">Cinéma Le Village · Séances 19h–21h</div>
     {cinema_html(cinema)}
   </div>
@@ -392,6 +418,194 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 </html>"""
 
 
+
+
+# ── Agenda iCloud ─────────────────────────────────────────────────────────────
+
+def get_agenda():
+    """Recupere les evenements iCloud CalDAV pour aujourd hui et demain."""
+    import base64, xml.etree.ElementTree as ET
+    from datetime import date, timedelta
+
+    user     = os.environ.get("ICLOUD_USER", "")
+    password = os.environ.get("ICLOUD_PASSWORD", "")
+
+    if not user or not password:
+        print("     Agenda: identifiants manquants")
+        return {"ok": False, "error": "Identifiants manquants", "events": []}
+
+    try:
+        # Periode: aujourd hui et demain
+        today    = now.date()
+        tomorrow = today + timedelta(days=1)
+        start    = today.strftime("%Y%m%dT000000Z")
+        end      = (tomorrow + timedelta(days=1)).strftime("%Y%m%dT000000Z")
+
+        # Requete CalDAV REPORT
+        caldav_url = f"https://caldav.icloud.com/1/calendars/"
+        body = f"""<?xml version="1.0" encoding="UTF-8"?>
+<c:calendar-query xmlns:c="urn:ietf:params:xml:ns:caldav"
+                  xmlns:d="DAV:">
+  <d:prop>
+    <d:getetag/>
+    <c:calendar-data/>
+  </d:prop>
+  <c:filter>
+    <c:comp-filter name="VCALENDAR">
+      <c:comp-filter name="VEVENT">
+        <c:time-range start="{start}" end="{end}"/>
+      </c:comp-filter>
+    </c:comp-filter>
+  </c:filter>
+</c:calendar-query>"""
+
+        # D abord trouver les calendriers de l utilisateur
+        principal_url = "https://caldav.icloud.com/"
+        auth = base64.b64encode(f"{user}:{password}".encode()).decode()
+        headers = {
+            "Authorization": f"Basic {auth}",
+            "Content-Type": "application/xml",
+            "Depth": "0",
+        }
+
+        # Requete PROPFIND pour trouver le home calendrier
+        propfind_body = """<?xml version="1.0" encoding="UTF-8"?>
+<d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <d:prop>
+    <c:calendar-home-set/>
+  </d:prop>
+</d:propfind>"""
+
+        req = urllib.request.Request(
+            principal_url,
+            data=propfind_body.encode(),
+            headers={**headers, "Depth": "0"},
+            method="PROPFIND"
+        )
+        with urllib.request.urlopen(req, timeout=10) as r:
+            resp_xml = r.read().decode()
+
+        # Extraire le calendar-home-set
+        home_match = re.search(r"<[^:]*:?href[^>]*>([^<]*calendars[^<]*)</[^>]*:?href>", resp_xml)
+        if not home_match:
+            # Essayer URL directe avec l identifiant numerique
+            id_match = re.search(r"/(\d+)/principal/", resp_xml)
+            if id_match:
+                uid = id_match.group(1)
+                calendar_home = f"https://caldav.icloud.com/{uid}/calendars/"
+            else:
+                calendar_home = f"https://caldav.icloud.com/calendars/"
+        else:
+            path = home_match.group(1).strip()
+            if path.startswith("http"):
+                calendar_home = path
+            else:
+                calendar_home = "https://caldav.icloud.com" + path
+
+        print(f"     Agenda: calendar home = {calendar_home}")
+
+        # Lister les calendriers
+        req2 = urllib.request.Request(
+            calendar_home,
+            data="""<?xml version="1.0" encoding="UTF-8"?>
+<d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <d:prop>
+    <d:displayname/>
+    <d:resourcetype/>
+  </d:prop>
+</d:propfind>""".encode(),
+            headers={**headers, "Depth": "1"},
+            method="PROPFIND"
+        )
+        with urllib.request.urlopen(req2, timeout=10) as r:
+            cals_xml = r.read().decode()
+
+        # Extraire les hrefs des calendriers
+        cal_hrefs = re.findall(r"<[^:]*:?href[^>]*>([^<]+)</[^>]*:?href>", cals_xml)
+        cal_urls = []
+        for href in cal_hrefs:
+            if "calendars/" in href and not href.endswith("calendars/"):
+                url = href if href.startswith("http") else "https://caldav.icloud.com" + href
+                if url not in cal_urls:
+                    cal_urls.append(url)
+
+        print(f"     Agenda: {len(cal_urls)} calendriers trouves")
+
+        # Requete REPORT sur chaque calendrier
+        events = []
+        report_body = f"""<?xml version="1.0" encoding="UTF-8"?>
+<c:calendar-query xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:d="DAV:">
+  <d:prop>
+    <c:calendar-data/>
+  </d:prop>
+  <c:filter>
+    <c:comp-filter name="VCALENDAR">
+      <c:comp-filter name="VEVENT">
+        <c:time-range start="{start}" end="{end}"/>
+      </c:comp-filter>
+    </c:comp-filter>
+  </c:filter>
+</c:calendar-query>""".encode()
+
+        for cal_url in cal_urls[:10]:  # Max 10 calendriers
+            try:
+                req3 = urllib.request.Request(
+                    cal_url,
+                    data=report_body,
+                    headers={**headers, "Depth": "1"},
+                    method="REPORT"
+                )
+                with urllib.request.urlopen(req3, timeout=10) as r:
+                    ical_data = r.read().decode()
+
+                # Parser les VEVENT dans la reponse
+                vevents = re.findall(r"BEGIN:VEVENT(.*?)END:VEVENT", ical_data, re.DOTALL)
+                for vevent in vevents:
+                    summary = re.search(r"SUMMARY[^:]*:(.+)", vevent)
+                    dtstart = re.search(r"DTSTART[^:]*:(\d+T?\d*)", vevent)
+                    if not summary or not dtstart:
+                        continue
+
+                    titre = summary.group(1).strip()
+                    dt_raw = dtstart.group(1).strip()
+
+                    # Parser la date/heure
+                    try:
+                        if "T" in dt_raw:
+                            dt = datetime.strptime(dt_raw[:15], "%Y%m%dT%H%M%S")
+                            horaire = dt.strftime("%H:%M")
+                            jour_dt = dt.date()
+                        else:
+                            jour_dt = datetime.strptime(dt_raw[:8], "%Y%m%d").date()
+                            horaire = "Journée"
+                    except Exception:
+                        continue
+
+                    if jour_dt == today:
+                        jour_label = "Aujourd hui"
+                    elif jour_dt == tomorrow:
+                        jour_label = "Demain"
+                    else:
+                        continue
+
+                    events.append({
+                        "titre": titre,
+                        "horaire": horaire,
+                        "jour": jour_label,
+                        "date": jour_dt.isoformat(),
+                    })
+            except Exception as e:
+                print(f"     Agenda cal error: {e}")
+                continue
+
+        # Trier par date puis heure
+        events.sort(key=lambda x: (x["date"], x["horaire"]))
+        print(f"     Agenda: {len(events)} evenements trouves")
+        return {"ok": True, "events": events}
+
+    except Exception as e:
+        print(f"     Erreur agenda: {e}")
+        return {"ok": False, "error": str(e), "events": []}
 
 # ── Cinéma Le Village ─────────────────────────────────────────────────────────
 
@@ -484,7 +698,11 @@ if __name__ == "__main__":
     cinema = get_cinema()
     print(f"     {cinema}")
 
-    html = build_html(meteo, ratp, velib, cinema)
+    print("  → Agenda…")
+    agenda = get_agenda()
+    print(f"     {agenda}")
+
+    html = build_html(meteo, ratp, velib, cinema, agenda)
 
     os.makedirs("docs", exist_ok=True)
     with open("docs/index.html", "w", encoding="utf-8") as f:
