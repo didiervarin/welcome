@@ -423,9 +423,27 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 # ── Agenda iCloud ─────────────────────────────────────────────────────────────
 
 def get_agenda():
-    """Recupere les evenements iCloud CalDAV pour aujourd hui et demain."""
-    import base64, xml.etree.ElementTree as ET
+    """Recupere les evenements iCloud CalDAV pour aujourd hui et demain.
+    Utilise un cache fichier pour eviter les appels trop frequents (403)."""
+    import base64, json as _json
     from datetime import date, timedelta
+
+    CACHE_FILE = "docs/agenda_cache.json"
+    CACHE_MAX_AGE_MIN = 60  # Rafraichir au maximum toutes les heures
+
+    # Lire le cache si il existe et est recent
+    try:
+        os.makedirs("docs", exist_ok=True)
+        if os.path.exists(CACHE_FILE):
+            with open(CACHE_FILE) as f:
+                cache = _json.load(f)
+            cache_time = _datetime_cls.fromisoformat(cache.get("generated_at", "2000-01-01T00:00:00"))
+            age_min = (now.replace(tzinfo=None) - cache_time).total_seconds() / 60
+            if age_min < CACHE_MAX_AGE_MIN:
+                print(f"     Agenda: cache utilise ({int(age_min)} min)")
+                return {"ok": True, "events": cache.get("events", [])}
+    except Exception as e:
+        print(f"     Agenda: cache illisible ({e}), on refait la requete")
 
     user     = os.environ.get("ICLOUD_USER", "")
     password = os.environ.get("ICLOUD_PASSWORD", "")
@@ -601,6 +619,20 @@ def get_agenda():
         # Trier par date puis heure
         events.sort(key=lambda x: (x["date"], x["horaire"]))
         print(f"     Agenda: {len(events)} evenements trouves")
+
+        # Sauvegarder le cache
+        try:
+            cache_data = {
+                "generated_at": now.replace(tzinfo=None).isoformat(),
+                "events": events
+            }
+            os.makedirs("docs", exist_ok=True)
+            with open(CACHE_FILE, "w") as f:
+                _json.dump(cache_data, f, ensure_ascii=False)
+            print("     Agenda: cache sauvegarde")
+        except Exception as e:
+            print(f"     Agenda: erreur sauvegarde cache ({e})")
+
         return {"ok": True, "events": events}
 
     except Exception as e:
