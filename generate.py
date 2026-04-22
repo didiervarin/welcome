@@ -300,7 +300,7 @@ def build_html(meteo, ratp, velib, cinema, agenda):
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta http-equiv="refresh" content="900">
 <title>Paris · Dashboard</title>
 <style>
@@ -312,65 +312,76 @@ def build_html(meteo, ratp, velib, cinema, agenda):
   --rain:#5b9bd5; --green:#4eba8a; --red:#e05c5c; --orange:#e8923a;
 }}
 *{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:32px 28px}}
-.header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;padding-bottom:16px;border-bottom:1px solid var(--border)}}
-.header-left{{display:flex;align-items:baseline;gap:14px}}
-.title{{font-family:'DM Serif Display',serif;font-size:26px;color:var(--accent)}}
-.subtitle{{font-size:11px;color:var(--muted);letter-spacing:.08em}}
+html{{-webkit-text-size-adjust:100%}}
+body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:env(safe-area-inset-top,16px) 14px env(safe-area-inset-bottom,16px)}}
+.header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--border)}}
+.header-left{{display:flex;flex-direction:column;gap:3px}}
+.title{{font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent)}}
+.subtitle{{display:none}}
 .datetime{{text-align:right}}
-.time-big{{font-family:'DM Mono',monospace;font-size:22px;color:var(--text);letter-spacing:.05em}}
-.date-str{{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:.06em}}
-.grid{{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px}}
-@media(max-width:640px){{.grid{{grid-template-columns:1fr}}}}
-.card{{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;overflow:hidden}}
+.time-big{{font-family:'DM Mono',monospace;font-size:20px;color:var(--text);letter-spacing:.05em}}
+.date-str{{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:.04em}}
+.grid{{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:900px}}
+@media(max-width:480px){{.grid{{grid-template-columns:1fr}}}}
+.card{{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;overflow:hidden}}
 .card.full{{grid-column:1/-1}}
-.card-label{{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:8px}}
+.card-label{{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px}}
 .card-label::after{{content:'';flex:1;height:1px;background:var(--border)}}
-.meteo-main{{display:flex;align-items:center;gap:16px;margin-bottom:14px}}
-.meteo-icon{{font-size:52px;line-height:1;flex-shrink:0}}
-.meteo-temp{{font-family:'DM Serif Display',serif;font-size:52px;line-height:1}}
-.meteo-temp sup{{font-size:20px;vertical-align:super;color:var(--muted);font-family:'Syne',sans-serif;font-weight:400}}
+.meteo-main{{display:flex;align-items:center;gap:12px;margin-bottom:12px}}
+.meteo-icon{{font-size:44px;line-height:1;flex-shrink:0}}
+.meteo-temp{{font-family:'DM Serif Display',serif;font-size:44px;line-height:1}}
+.meteo-temp sup{{font-size:18px;vertical-align:super;color:var(--muted);font-family:'Syne',sans-serif;font-weight:400}}
 .meteo-lieu{{font-size:13px;font-weight:600;letter-spacing:.03em}}
 .meteo-desc{{font-size:11px;color:var(--muted);margin-top:3px}}
 .meteo-slot{{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}}
-.rain-block{{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}}
-.rain-header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}}
+.rain-block{{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}}
+.rain-header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}}
 .rain-label{{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.05em}}
 .rain-pct{{font-family:'DM Serif Display',serif;font-size:18px;color:var(--rain)}}
 .bar-track{{height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}}
 .bar-fill{{height:100%;border-radius:3px}}
 .bar-rain{{background:linear-gradient(90deg,#3a7bba,var(--accent2))}}
 .bar-low{{background:linear-gradient(90deg,var(--green),#7ec8c8)}}
-.ratp-lines{{display:flex;flex-direction:column;gap:12px}}
-.ratp-line{{display:flex;align-items:center;gap:12px}}
-.badge{{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:13px;font-weight:500;flex-shrink:0}}
+.ratp-lines{{display:flex;flex-direction:column;gap:10px}}
+.ratp-line{{display:flex;align-items:center;gap:10px}}
+.badge{{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;flex-shrink:0}}
 .line-info{{flex:1}}
-.line-name{{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.04em;margin-bottom:3px}}
-.pill{{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:500;padding:2px 9px;border-radius:20px}}
+.line-name{{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.03em;margin-bottom:3px}}
+.pill{{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:500;padding:3px 8px;border-radius:20px}}
 .pill::before{{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}}
 .ok{{color:var(--green);background:rgba(78,186,138,.12)}}.ok::before{{background:var(--green)}}
 .warn{{color:var(--orange);background:rgba(232,146,58,.12)}}.warn::before{{background:var(--orange)}}
 .err{{color:var(--red);background:rgba(224,92,92,.12)}}.err::before{{background:var(--red)}}
-.velib-grid{{display:grid;grid-template-columns:1fr 1fr;gap:12px}}
-.station{{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px}}
-.station-id{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.12em;margin-bottom:2px}}
-.station-name{{font-size:12px;font-weight:600;margin-bottom:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
-.station-stats{{display:flex;align-items:center;gap:16px}}
+.velib-grid{{display:grid;grid-template-columns:1fr 1fr;gap:10px}}
+.station{{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px}}
+.station-id{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.1em;margin-bottom:2px}}
+.station-name{{font-size:12px;font-weight:600;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+.station-stats{{display:flex;align-items:center;gap:12px}}
 .stat{{display:flex;flex-direction:column;gap:2px}}
-.stat-val{{font-family:'DM Serif Display',serif;font-size:34px;line-height:1}}
+.stat-val{{font-family:'DM Serif Display',serif;font-size:32px;line-height:1}}
 .stat-lbl{{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.08em;text-transform:uppercase}}
 .bikes{{color:var(--accent)}}.docks{{color:var(--accent2)}}
-.stat-sep{{width:1px;height:36px;background:var(--border)}}
-.velib-bar-wrap{{margin-top:10px}}
+.stat-sep{{width:1px;height:34px;background:var(--border)}}
+.velib-bar-wrap{{margin-top:8px}}
 .velib-bar-track{{height:3px;background:rgba(255,255,255,.06);border-radius:2px;display:flex;gap:1px}}
 .velib-bar-bikes{{height:100%;background:var(--accent);border-radius:2px}}
 .velib-bar-docks{{height:100%;background:var(--accent2);border-radius:2px}}
 .error{{color:var(--red);font-size:11px;font-family:'DM Mono',monospace;padding:4px 0}}
-.agenda-list{{display:flex;flex-direction:column;gap:6px}}.agenda-jour{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;margin-top:8px;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border)}}.agenda-jour:first-child{{margin-top:0}}.agenda-event{{display:flex;align-items:center;gap:12px;padding:4px 0}}.agenda-heure{{font-family:'DM Mono',monospace;font-size:14px;color:var(--accent2);font-weight:500;min-width:44px}}.agenda-titre{{font-size:12px;color:var(--text);font-weight:500}}
-.cinema-list{{display:flex;flex-direction:column;gap:8px}}.cinema-seance{{display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid var(--border)}}.cinema-seance:last-child{{border-bottom:none}}.cinema-heure{{font-family:'DM Mono',monospace;font-size:16px;color:var(--accent);font-weight:500;min-width:44px}}.cinema-titre{{font-size:13px;font-weight:500;color:var(--text)}}
-.footer{{margin-top:20px;max-width:900px;display:flex;justify-content:space-between;align-items:center}}
-.update-info{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.06em}}
-.next-info{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.06em;text-align:right}}
+.agenda-list{{display:flex;flex-direction:column;gap:4px}}
+.agenda-jour{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;margin-top:8px;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border)}}
+.agenda-jour:first-child{{margin-top:0}}
+.agenda-event{{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border)}}
+.agenda-event:last-child{{border-bottom:none}}
+.agenda-heure{{font-family:'DM Mono',monospace;font-size:13px;color:var(--accent2);font-weight:500;min-width:40px;flex-shrink:0}}
+.agenda-titre{{font-size:13px;color:var(--text);font-weight:500;line-height:1.3}}
+.cinema-list{{display:flex;flex-direction:column;gap:6px}}
+.cinema-seance{{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)}}
+.cinema-seance:last-child{{border-bottom:none}}
+.cinema-heure{{font-family:'DM Mono',monospace;font-size:15px;color:var(--accent);font-weight:500;min-width:40px;flex-shrink:0}}
+.cinema-titre{{font-size:13px;font-weight:500;color:var(--text)}}
+.footer{{margin-top:16px;max-width:900px;display:flex;justify-content:space-between;align-items:center}}
+.update-info{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.04em}}
+.next-info{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.04em;text-align:right}}
 </style>
 </head>
 <body>
