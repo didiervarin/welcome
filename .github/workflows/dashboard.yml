@@ -33,6 +33,14 @@ jobs:
           ICLOUD_PASSWORD: ${{ secrets.ICLOUD_PASSWORD }}
         run: python generate.py
 
+      - name: Sauvegarder le cache agenda
+        run: |
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git add agenda_cache.json || true
+          git diff --cached --quiet || git commit -m "cache agenda $(date -u '+%H:%M')"
+          git push origin main || true
+
       - name: Déployer sur GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
