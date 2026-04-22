@@ -653,9 +653,11 @@ def get_agenda():
 # ── Cinéma Le Village ─────────────────────────────────────────────────────────
 
 def get_cinema():
-    """Scrape offi.fr et retourne les seances du jour entre 19h et 21h."""
+    """Scrape AlloCine avec la date du jour et retourne les seances entre 19h et 21h."""
     try:
-        url = "https://www.offi.fr/cinema/le-village-3373.html"
+        # URL avec date du jour pour avoir exactement les bonnes seances
+        date_str = now.strftime("%Y-%m-%d")
+        url = f"https://www.allocine.fr/seance/salle_gen_csalle=B0095/jour_gen_jour={date_str}.html"
         req = urllib.request.Request(url, headers={
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -664,61 +666,44 @@ def get_cinema():
         with urllib.request.urlopen(req, timeout=10) as r:
             raw = r.read().decode("utf-8")
 
-        # Convertir le HTML en texte lisible
-        # Extraire le texte entre balises h5 (titres films) et les horaires
-        # Structure HTML: <h5><a href="/cinema/evenement/...">TITRE</a></h5>
-        # suivi de texte avec horaires HH:MM
+        print(f"     Cinema: URL={url}")
 
-        # Strategie: splitter par h5, prendre le 1er lien <a> comme titre
-        blocs = re.split(r'</?h5[^>]*>', raw)
-
-        seen = set()
+        # Extraire les blocs film: separes par les titres de films
+        # Chercher tous les titres avec leurs horaires associes
         seances = []
+        seen = set()
 
-        for i, bloc in enumerate(blocs):
-            # Chercher n'importe quel lien <a> dans ce bloc h5
-            m = re.search(r'<a[^>]*>([^<]{3,60})</a>', bloc)
+        # Splitter par section film (chaque film commence par son titre en lien)
+        blocs = re.split(r'(?=<a[^>]*fichefilm[^>]*>)', raw)
+
+        for bloc in blocs:
+            m = re.search(r'<a[^>]*fichefilm[^"]*">([^<]{2,60})</a>', bloc)
             if not m:
                 continue
             titre = m.group(1).strip()
-
-            # Ignorer les titres qui ne ressemblent pas a des films
-            mots_a_ignorer = ["événement", "proposer", "officiel", "accueil",
-                              "cinéma", "théâtre", "programme", "réservation",
-                              "newsletter", "contact", "mentions"]
-            if any(mot in titre.lower() for mot in mots_a_ignorer):
-                continue
-            if len(titre) < 2:
-                continue
-
             if titre in seen:
+                continue
+            mots_ignorer = ["allocine", "accueil", "bande", "trailer", "voir", "plus"]
+            if any(mot in titre.lower() for mot in mots_ignorer):
                 continue
             seen.add(titre)
 
-            # Les horaires sont dans le bloc SUIVANT (apres le </h5>)
-            next_bloc = blocs[i+1] if i+1 < len(blocs) else ""
-            horaires = re.findall(r'\b(\d{1,2}):(\d{2})\b', next_bloc)
+            horaires = re.findall(r'\b(\d{1,2}):(\d{2})\b', bloc)
             for h, mn in horaires:
                 heure_min = int(h) * 60 + int(mn)
                 if 19 * 60 <= heure_min <= 21 * 60:
                     seances.append({"titre": titre, "horaire": f"{h}:{mn}"})
 
         seances.sort(key=lambda x: x["horaire"])
-        # Debug: afficher ce que le parser trouve
-        blocs_count = len(re.findall(r'<h5[^>]*>', raw))
-        liens_count = len(re.findall(r'href="/cinema/evenement/[^"]+">([^<]+)</a>', raw))
-        horaires_all = re.findall(r'\b(\d{1,2}):(\d{2})\b', raw)
-        print(f"     Debug: {blocs_count} balises h5, {liens_count} liens films")
-        print(f"     Debug horaires bruts: {[f'{h}:{m}' for h,m in horaires_all[:15]]}")
-        print(f"     Cinema: {len(seances)} seances trouvees entre 19h et 21h")
-        if seances:
-            for s in seances:
-                print(f"       {s['horaire']} {s['titre']}")
+        print(f"     Cinema: {len(seances)} seances entre 19h et 21h")
+        for s in seances:
+            print(f"       {s['horaire']} {s['titre']}")
         return {"ok": True, "seances": seances}
 
     except Exception as e:
         print(f"     Erreur cinema: {e}")
         return {"ok": False, "error": str(e), "seances": []}
+
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
