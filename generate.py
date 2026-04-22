@@ -433,6 +433,57 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 
 # ── Agenda iCloud ─────────────────────────────────────────────────────────────
 
+
+# ── Cinéma Le Village ─────────────────────────────────────────────────────────
+
+def get_cinema():
+    """Scrape AlloCine et retourne les seances du jour entre 19h et 21h."""
+    try:
+        url = "https://www.allocine.fr/seance/salle_gen_csalle=B0095.html"
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
+            "Accept": "text/html,application/xhtml+xml",
+            "Accept-Language": "fr-FR,fr;q=0.9",
+        })
+        with urllib.request.urlopen(req, timeout=10) as r:
+            raw = r.read().decode("utf-8", errors="replace")
+
+        seances = []
+        seen = set()
+
+        # Splitter par section film
+        blocs = re.split(r'<h2[^>]*>', raw)
+
+        for bloc in blocs:
+            # Chercher le titre
+            m = re.search(r'<a[^>]*fichefilm[^"]*">([^<]{2,60})</a>', bloc)
+            if not m:
+                continue
+            titre = m.group(1).strip()
+            if titre in seen:
+                continue
+            mots_ignorer = ["allocine", "accueil", "bande", "trailer", "voir", "cinema"]
+            if any(mot in titre.lower() for mot in mots_ignorer):
+                continue
+            seen.add(titre)
+
+            # Horaires dans les 800 premiers chars du bloc
+            horaires = re.findall(r'\b(\d{1,2}):(\d{2})\b', bloc[:800])
+            for h, mn in horaires:
+                heure_min = int(h) * 60 + int(mn)
+                if 19 * 60 <= heure_min <= 21 * 60:
+                    seances.append({"titre": titre, "horaire": f"{h}:{mn}"})
+
+        seances.sort(key=lambda x: x["horaire"])
+        print(f"     Cinema: {len(seances)} seances entre 19h et 21h")
+        for s in seances:
+            print(f"       {s['horaire']} {s['titre']}")
+        return {"ok": True, "seances": seances}
+
+    except Exception as e:
+        print(f"     Erreur cinema: {e}")
+        return {"ok": False, "error": str(e), "seances": []}
+
 def get_agenda():
     """Recupere les evenements via lien de partage public iCloud (.ics)."""
     import json as _json
