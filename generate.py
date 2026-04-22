@@ -439,12 +439,11 @@ def get_agenda():
     import base64, json as _json
     from datetime import date, timedelta
 
-    CACHE_FILE = "docs/agenda_cache.json"
+    CACHE_FILE = "agenda_cache.json"
     CACHE_MAX_AGE_MIN = 60  # Rafraichir au maximum toutes les heures
 
     # Lire le cache si il existe et est recent
     try:
-        os.makedirs("docs", exist_ok=True)
         if os.path.exists(CACHE_FILE):
             with open(CACHE_FILE) as f:
                 cache = _json.load(f)
@@ -637,7 +636,6 @@ def get_agenda():
                 "generated_at": now.replace(tzinfo=None).isoformat(),
                 "events": events
             }
-            os.makedirs("docs", exist_ok=True)
             with open(CACHE_FILE, "w") as f:
                 _json.dump(cache_data, f, ensure_ascii=False)
             print("     Agenda: cache sauvegarde")
@@ -653,11 +651,9 @@ def get_agenda():
 # ── Cinéma Le Village ─────────────────────────────────────────────────────────
 
 def get_cinema():
-    """Scrape AlloCine avec la date du jour et retourne les seances entre 19h et 21h."""
+    """Scrape AlloCine et retourne les seances du jour entre 19h et 21h."""
     try:
-        # URL avec date du jour pour avoir exactement les bonnes seances
-        date_str = now.strftime("%Y-%m-%d")
-        url = f"https://www.allocine.fr/seance/salle_gen_csalle=B0095/jour_gen_jour={date_str}.html"
+        url = "https://www.allocine.fr/seance/salle_gen_csalle=B0095.html"
         req = urllib.request.Request(url, headers={
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -666,29 +662,32 @@ def get_cinema():
         with urllib.request.urlopen(req, timeout=10) as r:
             raw = r.read().decode("utf-8")
 
-        print(f"     Cinema: URL={url}")
+        # AlloCine affiche les films avec leurs horaires pour le jour selectionne
+        # Le 1er onglet = aujourd hui. Chaque film apparait UNE SEULE FOIS
+        # avec ses horaires du jour. Pas de repetition contrairement a offi.fr.
+        # Strategie: chercher titre + horaires dans le meme bloc
 
-        # Extraire les blocs film: separes par les titres de films
-        # Chercher tous les titres avec leurs horaires associes
         seances = []
         seen = set()
 
-        # Splitter par section film (chaque film commence par son titre en lien)
-        blocs = re.split(r'(?=<a[^>]*fichefilm[^>]*>)', raw)
+        # Splitter par lien fichefilm (= un film)
+        parties = re.split(r'(?=<a[^>]*fichefilm[^>]*>[^<]{2,60}</a>)', raw)
 
-        for bloc in blocs:
-            m = re.search(r'<a[^>]*fichefilm[^"]*">([^<]{2,60})</a>', bloc)
+        for partie in parties:
+            m = re.search(r'<a[^>]*fichefilm[^"]*">([^<]{2,60})</a>', partie)
             if not m:
                 continue
             titre = m.group(1).strip()
             if titre in seen:
                 continue
-            mots_ignorer = ["allocine", "accueil", "bande", "trailer", "voir", "plus"]
+            mots_ignorer = ["allocine", "accueil", "bande", "trailer", "voir", "cinema"]
             if any(mot in titre.lower() for mot in mots_ignorer):
                 continue
             seen.add(titre)
 
-            horaires = re.findall(r'\b(\d{1,2}):(\d{2})\b', bloc)
+            # Chercher les horaires dans les 800 premiers caracteres apres le titre
+            extrait = partie[:800]
+            horaires = re.findall(r'\b(\d{1,2}):(\d{2})\b', extrait)
             for h, mn in horaires:
                 heure_min = int(h) * 60 + int(mn)
                 if 19 * 60 <= heure_min <= 21 * 60:
