@@ -488,6 +488,7 @@ def get_agenda():
     """Recupere les evenements via lien de partage public iCloud (.ics)."""
     import json as _json
     from datetime import date, timedelta
+    from datetime import datetime as _datetime_cls
 
     CACHE_FILE = "agenda_cache.json"
     CACHE_MAX_AGE_MIN = 60
@@ -518,8 +519,12 @@ def get_agenda():
 
         print(f"     Agenda: .ics recu ({len(ics_data)} chars)")
 
+        # Utiliser la date locale Paris (pas UTC)
+        from datetime import date, timedelta as td
         today    = now.date()
-        tomorrow = today + timedelta(days=1)
+        tomorrow = today + td(days=1)
+
+        print(f"     Agenda: aujourd'hui={today}, demain={tomorrow}")
 
         # Parser le fichier ICS
         vevents = re.findall(r"BEGIN:VEVENT(.*?)END:VEVENT", ics_data, re.DOTALL)
@@ -528,22 +533,29 @@ def get_agenda():
         events = []
         for vevent in vevents:
             summary = re.search(r"SUMMARY[^:]*:(.+)", vevent)
-            dtstart = re.search(r"DTSTART[^:]*:(\S+)", vevent)
+            dtstart = re.search(r"DTSTART(?:;[^:]*)?:(\S+)", vevent)
             if not summary or not dtstart:
                 continue
 
             titre  = summary.group(1).strip()
+            # Nettoyer les caracteres d'echappement ICS
+            titre  = titre.replace("\,", ",").replace("\;", ";").replace("\n", " ")
             dt_raw = dtstart.group(1).strip()
 
             try:
                 if "T" in dt_raw:
+                    # Convertir en heure Paris (UTC+2)
                     dt = _datetime_cls.strptime(dt_raw[:15], "%Y%m%dT%H%M%S")
-                    horaire  = dt.strftime("%H:%M")
-                    jour_dt  = dt.date()
+                    if dt_raw.endswith("Z"):
+                        # UTC -> Paris (+2h)
+                        from datetime import timedelta as _td2
+                        dt = dt + _td2(hours=2)
+                    horaire = dt.strftime("%H:%M")
+                    jour_dt = dt.date()
                 else:
                     jour_dt = _datetime_cls.strptime(dt_raw[:8], "%Y%m%d").date()
                     horaire = "Journée"
-            except Exception:
+            except Exception as pe:
                 continue
 
             if jour_dt == today:
