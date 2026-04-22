@@ -531,3 +531,35 @@ def get_agenda():
         return {"ok": False, "error": str(e), "events": []}
 
 
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    print(f"[{now.strftime('%H:%M')}] Génération du dashboard…")
+
+    print("  → Météo…")
+    meteo = get_meteo()
+    print(f"     {meteo}")
+
+    print("  → RATP…")
+    ratp = get_ratp()
+    print(f"     {ratp}")
+
+    print("  → Vélib…")
+    velib = get_velib()
+    print(f"     {velib}")
+
+    print("  → Cinéma…")
+    cinema = get_cinema()
+    print(f"     {cinema}")
+
+    print("  → Agenda…")
+    agenda = get_agenda()
+    print(f"     {agenda}")
+
+    html = build_html(meteo, ratp, velib, cinema, agenda)
+
+    os.makedirs("docs", exist_ok=True)
+    with open("docs/index.html", "w", encoding="utf-8") as f:
+        f.write(html)
+
+    print("  ✓ docs/index.html généré")
