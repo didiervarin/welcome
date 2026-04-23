@@ -467,25 +467,36 @@ def get_cinema():
                 continue
             seen.add(titre)
 
-            # Horaires dans les 800 premiers chars du bloc
-            horaires = re.findall(r'\b(\d{1,2}):(\d{2})\b', bloc[:800])
-            for h, mn in horaires:
-                heure_min = int(h) * 60 + int(mn)
-                if 19 * 60 <= heure_min <= 21 * 60:
-                    seances.append({"titre": titre, "horaire": f"{h}:{mn}"})
+            # Chercher les horaires de seances (format HH:MM entre balises specifiques)
+            # Exclure les durées (format XhYY) en cherchant le contexte
+            # Les horaires de seances sont dans des span/div speciaux sur AlloCine
+            horaires_seance = re.findall(
+                r'(?:showtime|heure|time|horaire)[^>]*>\s*(\d{1,2}):(\d{2})|'
+                r'<time[^>]*>(\d{1,2}):(\d{2})|'
+                r'"(\d{2}):(\d{2})"',
+                bloc
+            )
+            # Si pas trouve avec balises, chercher HHhMM ou HH:MM isoles
+            if not horaires_seance:
+                # Pattern plus large: horaires entre 10h et 23h
+                horaires_seance2 = re.findall(r'\b((?:1[0-9]|2[0-3]|[1-9])):(\d{2})\b', bloc)
+                for h, mn in horaires_seance2:
+                    heure_min = int(h) * 60 + int(mn)
+                    if 19 * 60 <= heure_min <= 21 * 60:
+                        seances.append({"titre": titre, "horaire": f"{int(h):02d}:{mn}"})
+            else:
+                for groups in horaires_seance:
+                    # Prendre le premier groupe non vide
+                    h, mn = next((g for g in zip(groups[::2], groups[1::2]) if g[0]), (None, None))
+                    if h is None:
+                        continue
+                    heure_min = int(h) * 60 + int(mn)
+                    if 19 * 60 <= heure_min <= 21 * 60:
+                        seances.append({"titre": titre, "horaire": f"{int(h):02d}:{mn}"})
 
         seances.sort(key=lambda x: x["horaire"])
         print(f"     Cinema: {len(seances)} seances entre 19h et 21h")
-        print(f"     Cinema debug: {len(blocs)} blocs h2, {len(seen)} titres trouves: {list(seen)}")
-        # Afficher tous les horaires bruts trouves
-        tous_horaires = re.findall(r'\b(\d{1,2}):(\d{2})\b', raw)
-        print(f"     Cinema horaires bruts: {[f'{h}:{m}' for h,m in tous_horaires[:20]]}")
-        # Afficher les 800 premiers chars de chaque bloc pour debug
-        for i, bloc in enumerate(blocs[:6]):
-            m2 = re.search(r'<a[^>]*fichefilm[^"]*">([^<]{2,60})</a>', bloc)
-            titre_debug = m2.group(1) if m2 else "PAS DE TITRE"
-            horaires_debug = re.findall(r'\b(\d{1,2}):(\d{2})\b', bloc[:800])
-            print(f"     Bloc {i}: titre={titre_debug} horaires={horaires_debug}")
+
         for s in seances:
             print(f"       {s['horaire']} {s['titre']}")
         return {"ok": True, "seances": seances}
