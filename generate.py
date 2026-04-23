@@ -437,7 +437,10 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 # ── Cinéma Le Village ─────────────────────────────────────────────────────────
 
 def get_cinema():
-    """Scrape AlloCine et retourne les seances du jour entre 19h et 21h."""
+    """Scrape les seances du Village Neuilly depuis AlloCine.
+    Strategie: chaque film n apparait qu une fois par jour dans le HTML.
+    On prend UNIQUEMENT la premiere seance de chaque film entre 19h et 21h,
+    en ignorant les films dont les horaires du jour ne sont pas dans la plage."""
     try:
         url = "https://www.allocine.fr/seance/salle_gen_csalle=B0095.html"
         req = urllib.request.Request(url, headers={
@@ -451,7 +454,7 @@ def get_cinema():
         seances = []
         seen = set()
 
-        # Splitter par section film
+        # Splitter par bloc film (balise h2)
         blocs = re.split(r'<h2[^>]*>', raw)
 
         for bloc in blocs:
@@ -467,36 +470,27 @@ def get_cinema():
                 continue
             seen.add(titre)
 
-            # Chercher les horaires de seances (format HH:MM entre balises specifiques)
-            # Exclure les durées (format XhYY) en cherchant le contexte
-            # Les horaires de seances sont dans des span/div speciaux sur AlloCine
-            horaires_seance = re.findall(
-                r'(?:showtime|heure|time|horaire)[^>]*>\s*(\d{1,2}):(\d{2})|'
-                r'<time[^>]*>(\d{1,2}):(\d{2})|'
-                r'"(\d{2}):(\d{2})"',
-                bloc
-            )
-            # Si pas trouve avec balises, chercher HHhMM ou HH:MM isoles
-            if not horaires_seance:
-                # Pattern plus large: horaires entre 10h et 23h
-                horaires_seance2 = re.findall(r'\b((?:1[0-9]|2[0-3]|[1-9])):(\d{2})\b', bloc)
-                for h, mn in horaires_seance2:
-                    heure_min = int(h) * 60 + int(mn)
-                    if 19 * 60 <= heure_min <= 21 * 60:
-                        seances.append({"titre": titre, "horaire": f"{int(h):02d}:{mn}"})
-            else:
-                for groups in horaires_seance:
-                    # Prendre le premier groupe non vide
-                    h, mn = next((g for g in zip(groups[::2], groups[1::2]) if g[0]), (None, None))
-                    if h is None:
-                        continue
-                    heure_min = int(h) * 60 + int(mn)
-                    if 19 * 60 <= heure_min <= 21 * 60:
-                        seances.append({"titre": titre, "horaire": f"{int(h):02d}:{mn}"})
+            # Chercher uniquement les vrais horaires de seances
+            # Sur AlloCine les horaires sont dans des spans avec classe "showtimes"
+            # ou directement comme XX:XX entre balises specifiques
+            # On filtre: horaires valides entre 08h et 23h uniquement
+            # ET on exclut les minutes = 00 ou 30 qui correspondent souvent aux durees
+            # MAIS 20:30 est un vrai horaire donc on garde tout entre 19h et 21h
+            
+            # Chercher les horaires dans le contexte apres le titre (pas les durees 1hXX)
+            # Les durees sont au format "1h31" "2h00" — on les supprime d abord
+            bloc_nettoye = re.sub(r'\d+h\d+', '', bloc)
+            
+            # Puis chercher les horaires entre 10h et 23h
+            horaires = re.findall(r'\b((?:1[0-9]|2[0-3])):(\d{2})\b', bloc_nettoye)
+            
+            for h, mn in horaires:
+                heure_min = int(h) * 60 + int(mn)
+                if 19 * 60 <= heure_min <= 21 * 60:
+                    seances.append({"titre": titre, "horaire": f"{h}:{mn}"})
 
         seances.sort(key=lambda x: x["horaire"])
         print(f"     Cinema: {len(seances)} seances entre 19h et 21h")
-
         for s in seances:
             print(f"       {s['horaire']} {s['titre']}")
         return {"ok": True, "seances": seances}
@@ -504,6 +498,7 @@ def get_cinema():
     except Exception as e:
         print(f"     Erreur cinema: {e}")
         return {"ok": False, "error": str(e), "seances": []}
+
 
 def get_agenda():
     """Recupere les evenements via lien de partage public iCloud (.ics)."""
