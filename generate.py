@@ -476,6 +476,10 @@ def get_cinema():
 
         seances.sort(key=lambda x: x["horaire"])
         print(f"     Cinema: {len(seances)} seances entre 19h et 21h")
+        print(f"     Cinema debug: {len(blocs)} blocs h2, {len(seen)} titres trouves")
+        # Afficher tous les horaires bruts trouves
+        tous_horaires = re.findall(r'\b(\d{1,2}):(\d{2})\b', raw)
+        print(f"     Cinema horaires bruts: {[f'{h}:{m}' for h,m in tous_horaires[:20]]}")
         for s in seances:
             print(f"       {s['horaire']} {s['titre']}")
         return {"ok": True, "seances": seances}
