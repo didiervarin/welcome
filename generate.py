@@ -437,63 +437,77 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 # ── Cinéma Le Village ─────────────────────────────────────────────────────────
 
 def get_cinema():
-    """Scrape les seances du Village Neuilly depuis AlloCine.
-    Strategie: chaque film n apparait qu une fois par jour dans le HTML.
-    On prend UNIQUEMENT la premiere seance de chaque film entre 19h et 21h,
-    en ignorant les films dont les horaires du jour ne sont pas dans la plage."""
+    """Scrape offi.fr et retourne les seances du jour entre 19h et 21h.
+    Utilise les ancres #t_0 #t_1 pour isoler le bloc du jour."""
     try:
-        url = "https://www.allocine.fr/seance/salle_gen_csalle=B0095.html"
+        url = "https://www.offi.fr/cinema/le-village-3373.html"
         req = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
             "Accept": "text/html,application/xhtml+xml",
             "Accept-Language": "fr-FR,fr;q=0.9",
         })
         with urllib.request.urlopen(req, timeout=10) as r:
             raw = r.read().decode("utf-8", errors="replace")
 
+        # Splitter le HTML par les ancres de jours (#t_0 = aujourd hui, #t_1 = demain...)
+        # Format: id="t_0" ... id="t_1" ...
+        jours = re.split(r'id="t_\d+"', raw)
+
+        # jours[0] = avant le premier onglet (navigation etc.)
+        # jours[1] = bloc d aujourd hui
+        # jours[2] = bloc de demain, etc.
+
+        if len(jours) < 2:
+            print("     Cinema: pas d onglets trouves")
+            return {"ok": True, "seances": []}
+
+        today_block = jours[1]
+        print(f"     Cinema: bloc aujourd hui = {len(today_block)} chars")
+
+        # Dans ce bloc, chercher les films par leurs h5
         seances = []
         seen = set()
 
-        # Splitter par bloc film (balise h2)
-        blocs = re.split(r'<h2[^>]*>', raw)
+        # Splitter par h5
+        blocs = re.split(r'<h5[^>]*>', today_block)
 
         for bloc in blocs:
-            # Chercher le titre
-            m = re.search(r'<a[^>]*fichefilm[^"]*">([^<]{2,60})</a>', bloc)
+            # Chercher le titre via lien /cinema/evenement/
+            m = re.search(r'href="[^"]*evenement[^"]+">([^<]+)</a>', bloc)
             if not m:
                 continue
             titre = m.group(1).strip()
             if titre in seen:
                 continue
-            mots_ignorer = ["allocine", "accueil", "bande", "trailer", "voir", "cinema"]
+            mots_ignorer = ["proposer", "evenement"]
             if any(mot in titre.lower() for mot in mots_ignorer):
                 continue
             seen.add(titre)
 
-            # Chercher uniquement les vrais horaires de seances
-            # Sur AlloCine les horaires sont dans des spans avec classe "showtimes"
-            # ou directement comme XX:XX entre balises specifiques
-            # On filtre: horaires valides entre 08h et 23h uniquement
-            # ET on exclut les minutes = 00 ou 30 qui correspondent souvent aux durees
-            # MAIS 20:30 est un vrai horaire donc on garde tout entre 19h et 21h
-            
-            # Chercher les horaires dans le contexte apres le titre (pas les durees 1hXX)
-            # Les durees sont au format "1h31" "2h00" — on les supprime d abord
-            bloc_nettoye = re.sub(r'\d+h\d+', '', bloc)
-            
-            # Puis chercher les horaires entre 10h et 23h
-            horaires = re.findall(r'\b((?:1[0-9]|2[0-3])):(\d{2})\b', bloc_nettoye)
-            
+            # Supprimer les durees (1h53, 2h00 etc.) avant de chercher les horaires
+            bloc_net = re.sub(r'\d+h\d+', '', bloc)
+
+            # Chercher horaires entre 10h et 23h
+            horaires = re.findall(r'\b((?:1[0-9]|2[0-3]|[1-9])):(\d{2})\b', bloc_net)
             for h, mn in horaires:
                 heure_min = int(h) * 60 + int(mn)
                 if 19 * 60 <= heure_min <= 21 * 60:
-                    seances.append({"titre": titre, "horaire": f"{h}:{mn}"})
+                    seances.append({"titre": titre, "horaire": f"{int(h):02d}:{mn}"})
 
-        seances.sort(key=lambda x: x["horaire"])
-        print(f"     Cinema: {len(seances)} seances entre 19h et 21h")
+        # Dedoublonner par (titre, horaire)
+        seen_seances = set()
+        seances_uniq = []
         for s in seances:
+            key = (s["titre"], s["horaire"])
+            if key not in seen_seances:
+                seen_seances.add(key)
+                seances_uniq.append(s)
+
+        seances_uniq.sort(key=lambda x: x["horaire"])
+        print(f"     Cinema: {len(seances_uniq)} seances entre 19h et 21h")
+        for s in seances_uniq:
             print(f"       {s['horaire']} {s['titre']}")
-        return {"ok": True, "seances": seances}
+        return {"ok": True, "seances": seances_uniq}
 
     except Exception as e:
         print(f"     Erreur cinema: {e}")
