@@ -437,84 +437,90 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 # ── Cinéma Le Village ─────────────────────────────────────────────────────────
 
 def get_cinema():
-    """Scrape offi.fr et retourne les seances du jour entre 19h et 21h.
-    Utilise les ancres #t_0 #t_1 pour isoler le bloc du jour."""
+    """Scrape offi.fr et retourne les seances du jour entre 19h et 21h."""
     try:
         url = "https://www.offi.fr/cinema/le-village-3373.html"
         req = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-            "Accept": "text/html,application/xhtml+xml",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "fr-FR,fr;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
         })
         with urllib.request.urlopen(req, timeout=10) as r:
-            raw = r.read().decode("utf-8", errors="replace")
+            raw_bytes = r.read()
+            # Gerer le gzip
+            import gzip as _gzip
+            try:
+                raw = _gzip.decompress(raw_bytes).decode("utf-8", errors="replace")
+            except Exception:
+                raw = raw_bytes.decode("utf-8", errors="replace")
 
-        # Splitter le HTML par les ancres de jours (#t_0 = aujourd hui, #t_1 = demain...)
-        # Format: id="t_0" ... id="t_1" ...
-        jours = re.split(r'id="t_\d+"', raw)
+        print(f"     Cinema: page offi.fr recue ({len(raw)} chars)")
 
-        # jours[0] = avant le premier onglet (navigation etc.)
-        # jours[1] = bloc d aujourd hui
-        # jours[2] = bloc de demain, etc.
+        # Afficher les 500 premiers chars pour debug
+        print(f"     Cinema debut HTML: {repr(raw[:300])}")
 
-        if len(jours) < 2:
-            print("     Cinema: pas d onglets trouves")
-            return {"ok": True, "seances": []}
-
-        today_block = jours[1]
-        print(f"     Cinema: bloc aujourd hui = {len(today_block)} chars")
-        tous = re.findall(r'\b(\d{{1,2}}):(\d{{2}})\b', today_block)
-        print(f"     Cinema horaires bruts: {[f'{h}:{m}' for h,m in tous[:25]]}")
-        titres_debug = re.findall(r'<a[^>]*fichefilm[^"]*">([^<]{{2,60}})</a>', today_block)
-        print(f"     Cinema titres: {titres_debug}")
-
-        # Dans ce bloc, chercher les films par leurs h5
         seances = []
-        seen = set()
+        seen_titres = set()
+        seen_seances = set()
 
-        # Splitter par h5
-        blocs = re.split(r'<h5[^>]*>', today_block)
+        # Splitter par balise h5 (titres de films sur offi.fr)
+        blocs = re.split(r'</?h5[^>]*>', raw)
+        print(f"     Cinema: {len(blocs)} blocs h5")
 
-        for bloc in blocs:
-            # Chercher le titre via lien /cinema/evenement/
-            m = re.search(r'href="[^"]*evenement[^"]+">([^<]+)</a>', bloc)
+        for i, bloc in enumerate(blocs):
+            # Chercher un lien film dans ce bloc
+            m = re.search(r'<a[^>]*href="[^"]*(?:evenement|film)[^"]*">([^<]{2,60})</a>', bloc)
+            if not m:
+                # Essayer n'importe quel lien de 2 a 60 chars
+                m = re.search(r'<a[^>]*>([A-ZÀ-Üa-zà-ü][^<]{2,55})</a>', bloc)
             if not m:
                 continue
+
             titre = m.group(1).strip()
-            if titre in seen:
-                continue
-            mots_ignorer = ["proposer", "evenement"]
+            mots_ignorer = ["événement", "proposer", "officiel", "accueil",
+                           "programme", "réservation", "newsletter", "contact",
+                           "cinéma", "théâtre", "voir", "bande"]
             if any(mot in titre.lower() for mot in mots_ignorer):
                 continue
-            seen.add(titre)
+            if len(titre) < 2:
+                continue
 
-            # Supprimer les durees (1h53, 2h00 etc.) avant de chercher les horaires
-            bloc_net = re.sub(r'\d+h\d+', '', bloc)
+            if titre in seen_titres:
+                continue
+            seen_titres.add(titre)
 
-            # Chercher horaires entre 10h et 23h
-            horaires = re.findall(r'\b((?:1[0-9]|2[0-3]|[1-9])):(\d{2})\b', bloc_net)
+            # Horaires dans le bloc suivant
+            next_bloc = blocs[i+1] if i+1 < len(blocs) else ""
+            bloc_nettoye = re.sub(r'\d+h\d+', '', next_bloc + bloc)
+            horaires = re.findall(r'\b((?:1[0-9]|2[0-3])):(\d{2})\b', bloc_nettoye)
+
             for h, mn in horaires:
                 heure_min = int(h) * 60 + int(mn)
                 if 19 * 60 <= heure_min <= 21 * 60:
-                    seances.append({"titre": titre, "horaire": f"{int(h):02d}:{mn}"})
+                    key = (titre, f"{h}:{mn}")
+                    if key not in seen_seances:
+                        seen_seances.add(key)
+                        seances.append({"titre": titre, "horaire": f"{h}:{mn}"})
 
-        # Dedoublonner par (titre, horaire)
-        seen_seances = set()
-        seances_uniq = []
+        # Un seul horaire par titre
+        seen_t = set()
+        seances_final = []
+        seances.sort(key=lambda x: x["horaire"])
         for s in seances:
-            key = (s["titre"], s["horaire"])
-            if key not in seen_seances:
-                seen_seances.add(key)
-                seances_uniq.append(s)
+            if s["titre"] not in seen_t:
+                seen_t.add(s["titre"])
+                seances_final.append(s)
 
-        seances_uniq.sort(key=lambda x: x["horaire"])
-        print(f"     Cinema: {len(seances_uniq)} seances entre 19h et 21h")
-        for s in seances_uniq:
+        print(f"     Cinema: {len(seances_final)} seances entre 19h et 21h")
+        for s in seances_final:
             print(f"       {s['horaire']} {s['titre']}")
-        return {"ok": True, "seances": seances_uniq}
+        return {"ok": True, "seances": seances_final}
 
     except Exception as e:
         print(f"     Erreur cinema: {e}")
+        import traceback
+        traceback.print_exc()
         return {"ok": False, "error": str(e), "seances": []}
 
 
