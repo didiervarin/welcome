@@ -463,6 +463,10 @@ def get_cinema():
 
         today_block = jours[1]
         print(f"     Cinema: bloc aujourd hui = {len(today_block)} chars")
+        tous = re.findall(r'\b(\d{{1,2}}):(\d{{2}})\b', today_block)
+        print(f"     Cinema horaires bruts: {[f'{h}:{m}' for h,m in tous[:25]]}")
+        titres_debug = re.findall(r'<a[^>]*fichefilm[^"]*">([^<]{{2,60}})</a>', today_block)
+        print(f"     Cinema titres: {titres_debug}")
 
         # Dans ce bloc, chercher les films par leurs h5
         seances = []
