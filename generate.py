@@ -501,16 +501,18 @@ def get_cinema():
 
 
 def get_agenda():
-    """Recupere les evenements via lien de partage public iCloud (.ics)."""
+    """Recupere les evenements iCloud via lien public .ics.
+    Gere les evenements recurrents via la librairie recurring-ical-events."""
     import json as _json
-    from datetime import date, timedelta
-    from datetime import datetime as _datetime_cls
+    from datetime import date, timedelta, datetime as _dt2
+    from datetime import timezone as _tz
 
     CACHE_FILE = "agenda_cache.json"
-    CACHE_MAX_AGE_MIN = 60
+    CACHE_MAX_AGE_MIN = 55
 
     # Lire le cache si recent
     try:
+        from datetime import datetime as _datetime_cls
         if os.path.exists(CACHE_FILE):
             with open(CACHE_FILE) as f:
                 cache = _json.load(f)
@@ -523,7 +525,10 @@ def get_agenda():
         print(f"     Agenda: cache illisible ({e})")
 
     try:
-        # Lien de partage public iCloud (format .ics)
+        import icalendar
+        import recurring_ical_events
+        from dateutil import tz as dateutil_tz
+
         ics_url = "https://p107-caldav.icloud.com/published/2/MTAzNTQ1MDc1MDEwMzU0NYmcpywtThyQdaxKwwYs515U8aTs1c3QBmrho3z3DoD7J-mGPGOjZHu9kR8WaX-AcWmxyoRDRobKZs9BMkQkuzI"
 
         req = urllib.request.Request(ics_url, headers={
@@ -531,48 +536,48 @@ def get_agenda():
             "Accept": "text/calendar,*/*",
         })
         with urllib.request.urlopen(req, timeout=10) as r:
-            ics_data = r.read().decode("utf-8", errors="replace")
+            ics_data = r.read()
 
-        print(f"     Agenda: .ics recu ({len(ics_data)} chars)")
+        print(f"     Agenda: .ics recu ({len(ics_data)} bytes)")
 
-        # Utiliser la date locale Paris (pas UTC)
-        from datetime import date, timedelta as td
+        # Parser le calendrier
+        cal = icalendar.Calendar.from_ical(ics_data)
+
+        # Periode: aujourd hui et demain en heure Paris
+        paris_tz = dateutil_tz.gettz("Europe/Paris")
         today    = now.date()
-        tomorrow = today + td(days=1)
+        tomorrow = today + timedelta(days=1)
 
-        print(f"     Agenda: aujourd'hui={today}, demain={tomorrow}")
+        start_dt = _dt2(today.year, today.month, today.day, 0, 0, 0, tzinfo=paris_tz)
+        end_dt   = _dt2(tomorrow.year, tomorrow.month, tomorrow.day, 23, 59, 59, tzinfo=paris_tz)
 
-        # Parser le fichier ICS
-        vevents = re.findall(r"BEGIN:VEVENT(.*?)END:VEVENT", ics_data, re.DOTALL)
-        print(f"     Agenda: {len(vevents)} evenements trouves dans le .ics")
+        # Recuperer tous les evenements incluant les recurrents
+        evts = recurring_ical_events.of(cal).between(start_dt, end_dt)
+        print(f"     Agenda: {len(evts)} evenements trouves (recurrents inclus)")
 
         events = []
-        for vevent in vevents:
-            summary = re.search(r"SUMMARY[^:]*:(.+)", vevent)
-            dtstart = re.search(r"DTSTART(?:;[^:]*)?:(\S+)", vevent)
-            if not summary or not dtstart:
+        for evt in evts:
+            titre = str(evt.get("SUMMARY", "Sans titre")).strip()
+            titre = titre.replace("\\,", ",").replace("\\;", ";")
+
+            dtstart = evt.get("DTSTART")
+            if not dtstart:
                 continue
 
-            titre  = summary.group(1).strip()
-            # Nettoyer les caracteres d'echappement ICS
-            titre  = titre.replace("\,", ",").replace("\;", ";").replace("\n", " ")
-            dt_raw = dtstart.group(1).strip()
+            dt_val = dtstart.dt
 
-            try:
-                if "T" in dt_raw:
-                    # Convertir en heure Paris (UTC+2)
-                    dt = _datetime_cls.strptime(dt_raw[:15], "%Y%m%dT%H%M%S")
-                    if dt_raw.endswith("Z"):
-                        # UTC -> Paris (+2h)
-                        from datetime import timedelta as _td2
-                        dt = dt + _td2(hours=2)
-                    horaire = dt.strftime("%H:%M")
-                    jour_dt = dt.date()
+            # Convertir en heure Paris
+            if isinstance(dt_val, _dt2):
+                if dt_val.tzinfo:
+                    dt_local = dt_val.astimezone(paris_tz)
                 else:
-                    jour_dt = _datetime_cls.strptime(dt_raw[:8], "%Y%m%d").date()
-                    horaire = "Journée"
-            except Exception as pe:
-                continue
+                    dt_local = dt_val.replace(tzinfo=paris_tz)
+                horaire  = dt_local.strftime("%H:%M")
+                jour_dt  = dt_local.date()
+            else:
+                # Journee entiere (date sans heure)
+                jour_dt = dt_val
+                horaire = "Journée"
 
             if jour_dt == today:
                 jour_label = "Aujourd'hui"
@@ -582,17 +587,20 @@ def get_agenda():
                 continue
 
             events.append({
-                "titre":  titre,
+                "titre":   titre,
                 "horaire": horaire,
-                "jour":   jour_label,
-                "date":   jour_dt.isoformat(),
+                "jour":    jour_label,
+                "date":    jour_dt.isoformat(),
             })
 
         events.sort(key=lambda x: (x["date"], x["horaire"]))
         print(f"     Agenda: {len(events)} evenements aujourd'hui/demain")
+        for e in events:
+            print(f"       {e['jour']} {e['horaire']} {e['titre']}")
 
         # Sauvegarder le cache
         try:
+            from datetime import datetime as _dtnow
             cache_data = {
                 "generated_at": now.replace(tzinfo=None).isoformat(),
                 "events": events
@@ -610,35 +618,3 @@ def get_agenda():
         return {"ok": False, "error": str(e), "events": []}
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    print(f"[{now.strftime('%H:%M')}] Génération du dashboard…")
-
-    print("  → Météo…")
-    meteo = get_meteo()
-    print(f"     {meteo}")
-
-    print("  → RATP…")
-    ratp = get_ratp()
-    print(f"     {ratp}")
-
-    print("  → Vélib…")
-    velib = get_velib()
-    print(f"     {velib}")
-
-    print("  → Cinéma…")
-    cinema = get_cinema()
-    print(f"     {cinema}")
-
-    print("  → Agenda…")
-    agenda = get_agenda()
-    print(f"     {agenda}")
-
-    html = build_html(meteo, ratp, velib, cinema, agenda)
-
-    os.makedirs("docs", exist_ok=True)
-    with open("docs/index.html", "w", encoding="utf-8") as f:
-        f.write(html)
-
-    print("  ✓ docs/index.html généré")
