@@ -102,7 +102,25 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
 <div class="grid">
   <div class="card">
     <div class="card-label">Météo</div>
-    <div class="error">⚠ Météo indisponible — HTTP Error 502: Bad Gateway</div>
+    
+    <div class="meteo-main">
+      <div class="meteo-icon">☁️</div>
+      <div>
+        <div class="meteo-temp">22<sup>°C</sup></div>
+        <div class="meteo-lieu">Paris 8e</div>
+        <div class="meteo-desc">Couvert</div>
+        <div class="meteo-slot">12 h – 23 h 59</div>
+      </div>
+    </div>
+    <div class="rain-block">
+      <div class="rain-header">
+        <div class="rain-label">Risque pluie dans l'heure</div>
+        <div class="rain-pct">0%</div>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill bar-low" style="width:0%"></div>
+      </div>
+    </div>
   </div>
   <div class="card">
     <div class="card-label">RATP · Lignes 1 · 2 · 3</div>
