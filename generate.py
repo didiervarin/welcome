@@ -272,16 +272,15 @@ def agenda_html(agenda):
 def cinema_html(cinema):
     if not cinema["ok"]:
         return f'<div class="error">Cinéma indisponible</div>'
-    seances = cinema["seances"]
-    if not seances:
-        return '<div class="error">Aucune séance entre 19h et 21h ce soir</div>'
+    films = cinema.get("films", [])
+    # Filtrer les faux positifs
+    mots_ignorer = ["ugc", "pathé", "gaumont", "mk2", "cinéma", "merci", "non,"]
+    films = [f for f in films if not any(m in f.lower() for m in mots_ignorer)]
+    if not films:
+        return '<div class="error">Aucun film à l\'affiche aujourd\'hui</div>'
     rows = []
-    for s in seances:
-        rows.append(f"""
-      <div class="cinema-seance">
-        <div class="cinema-heure">{s['horaire']}</div>
-        <div class="cinema-titre">{s['titre']}</div>
-      </div>""")
+    for f in films:
+        rows.append(f'<div class="cinema-film">🎬 {f}</div>')
     return '<div class="cinema-list">' + "".join(rows) + '</div>'
 
 def build_html(meteo, ratp, velib, cinema, agenda):
