@@ -438,46 +438,63 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 def get_cinema():
     """Scrape offi.fr et retourne les films a l affiche aujourd hui."""
     try:
-        url = "https://www.offi.fr/cinema/le-village-3373.html"
+        # URL avec la date du jour pour n avoir que les films d aujourd hui
+        date_str = now.strftime("%Y-%m-%d")
+        url = f"https://www.offi.fr/cinema/le-village-3373.html?date={date_str}"
         req = urllib.request.Request(url, headers={
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "fr-FR,fr;q=0.9",
-            "Accept-Encoding": "identity",  # Pas de compression
+            "Accept-Encoding": "identity",
         })
         with urllib.request.urlopen(req, timeout=10) as r:
             raw = r.read().decode("utf-8", errors="replace")
 
         print(f"     Cinema: page recue ({len(raw)} chars)")
 
-        # Chercher tous les titres de films — premiere occurrence = aujourd hui
-        # Sur offi.fr chaque film est dans un <h5><a>TITRE</a></h5>
-        # Les films apparaissent plusieurs fois (un par jour) — on prend la 1ere occurrence
+        # Trouver le bloc correspondant a aujourd hui
+        # offi.fr structure: les films sont listes par jour
+        # On cherche le bloc entre l onglet d aujourd hui et l onglet suivant
+        # Les onglets ont le format: id="t_0" (aujourd hui), id="t_1" (demain), etc.
+        
+        # Extraire uniquement le bloc du premier onglet (aujourd hui)
+        parts = re.split(r'id="t_\d+"', raw)
+        if len(parts) > 1:
+            today_block = parts[1]
+        else:
+            today_block = raw
 
-        blocs = re.split(r'</?h5[^>]*>', raw)
+        print(f"     Cinema: bloc aujourd hui = {len(today_block)} chars")
 
+        # Chercher les titres de films dans ce bloc uniquement
+        blocs_h5 = re.split(r'</?h5[^>]*>', today_block)
+        
         seen = set()
         films = []
+        
+        # Noms de cinemas voisins a exclure
+        cinemas_voisins = ["ugc", "pathé", "gaumont", "mk2", "majestic", 
+                          "espace carpeaux", "abel gance", "le central", "ciné cité"]
 
-        for i, bloc in enumerate(blocs):
-            # Chercher un lien dans ce bloc
+        for bloc in blocs_h5:
             m = re.search(r'<a[^>]*>([^<]{2,60})</a>', bloc)
             if not m:
                 continue
             titre = m.group(1).strip()
 
-            # Filtrer les faux positifs
             mots_ignorer = ["événement", "proposer", "officiel", "accueil",
                            "programme", "réservation", "newsletter", "contact",
                            "cinéma", "théâtre", "voir", "bande", "spectacles",
-                           "cookies", "mentions", "connexion"]
+                           "cookies", "mentions", "connexion", "non, merci",
+                           "poupée", "prochainement"]
             if any(mot in titre.lower() for mot in mots_ignorer):
+                continue
+            if any(c in titre.lower() for c in cinemas_voisins):
                 continue
             if len(titre) < 2 or len(titre) > 60:
                 continue
-
             if titre in seen:
-                continue  # 2eme occurrence = autre jour, on ignore
+                continue
             seen.add(titre)
             films.append(titre)
 
