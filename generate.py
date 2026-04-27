@@ -415,7 +415,7 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
     {agenda_html(agenda)}
   </div>
   <div class="card full">
-    <div class="card-label">Cinéma Le Village · Séances 19h–21h</div>
+    <div class="card-label">Cinéma Le Village · À l'affiche aujourd'hui</div>
     {cinema_html(cinema)}
   </div>
 </div>
@@ -437,91 +437,59 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 # ── Cinéma Le Village ─────────────────────────────────────────────────────────
 
 def get_cinema():
-    """Scrape offi.fr et retourne les seances du jour entre 19h et 21h."""
+    """Scrape offi.fr et retourne les films a l affiche aujourd hui."""
     try:
         url = "https://www.offi.fr/cinema/le-village-3373.html"
         req = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "fr-FR,fr;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
+            "Accept-Encoding": "identity",  # Pas de compression
         })
         with urllib.request.urlopen(req, timeout=10) as r:
-            raw_bytes = r.read()
-            # Gerer le gzip
-            import gzip as _gzip
-            try:
-                raw = _gzip.decompress(raw_bytes).decode("utf-8", errors="replace")
-            except Exception:
-                raw = raw_bytes.decode("utf-8", errors="replace")
+            raw = r.read().decode("utf-8", errors="replace")
 
-        print(f"     Cinema: page offi.fr recue ({len(raw)} chars)")
+        print(f"     Cinema: page recue ({len(raw)} chars)")
 
-        # Afficher les 500 premiers chars pour debug
-        print(f"     Cinema debut HTML: {repr(raw[:300])}")
+        # Chercher tous les titres de films — premiere occurrence = aujourd hui
+        # Sur offi.fr chaque film est dans un <h5><a>TITRE</a></h5>
+        # Les films apparaissent plusieurs fois (un par jour) — on prend la 1ere occurrence
 
-        seances = []
-        seen_titres = set()
-        seen_seances = set()
-
-        # Splitter par balise h5 (titres de films sur offi.fr)
         blocs = re.split(r'</?h5[^>]*>', raw)
-        print(f"     Cinema: {len(blocs)} blocs h5")
+
+        seen = set()
+        films = []
 
         for i, bloc in enumerate(blocs):
-            # Chercher un lien film dans ce bloc
-            m = re.search(r'<a[^>]*href="[^"]*(?:evenement|film)[^"]*">([^<]{2,60})</a>', bloc)
-            if not m:
-                # Essayer n'importe quel lien de 2 a 60 chars
-                m = re.search(r'<a[^>]*>([A-ZÀ-Üa-zà-ü][^<]{2,55})</a>', bloc)
+            # Chercher un lien dans ce bloc
+            m = re.search(r'<a[^>]*>([^<]{2,60})</a>', bloc)
             if not m:
                 continue
-
             titre = m.group(1).strip()
+
+            # Filtrer les faux positifs
             mots_ignorer = ["événement", "proposer", "officiel", "accueil",
                            "programme", "réservation", "newsletter", "contact",
-                           "cinéma", "théâtre", "voir", "bande"]
+                           "cinéma", "théâtre", "voir", "bande", "spectacles",
+                           "cookies", "mentions", "connexion"]
             if any(mot in titre.lower() for mot in mots_ignorer):
                 continue
-            if len(titre) < 2:
+            if len(titre) < 2 or len(titre) > 60:
                 continue
 
-            if titre in seen_titres:
-                continue
-            seen_titres.add(titre)
+            if titre in seen:
+                continue  # 2eme occurrence = autre jour, on ignore
+            seen.add(titre)
+            films.append(titre)
 
-            # Horaires dans le bloc suivant
-            next_bloc = blocs[i+1] if i+1 < len(blocs) else ""
-            bloc_nettoye = re.sub(r'\d+h\d+', '', next_bloc + bloc)
-            horaires = re.findall(r'\b((?:1[0-9]|2[0-3])):(\d{2})\b', bloc_nettoye)
-
-            for h, mn in horaires:
-                heure_min = int(h) * 60 + int(mn)
-                if 19 * 60 <= heure_min <= 21 * 60:
-                    key = (titre, f"{h}:{mn}")
-                    if key not in seen_seances:
-                        seen_seances.add(key)
-                        seances.append({"titre": titre, "horaire": f"{h}:{mn}"})
-
-        # Un seul horaire par titre
-        seen_t = set()
-        seances_final = []
-        seances.sort(key=lambda x: x["horaire"])
-        for s in seances:
-            if s["titre"] not in seen_t:
-                seen_t.add(s["titre"])
-                seances_final.append(s)
-
-        print(f"     Cinema: {len(seances_final)} seances entre 19h et 21h")
-        for s in seances_final:
-            print(f"       {s['horaire']} {s['titre']}")
-        return {"ok": True, "seances": seances_final}
+        print(f"     Cinema: {len(films)} films a l affiche aujourd hui")
+        for f in films:
+            print(f"       - {f}")
+        return {"ok": True, "films": films}
 
     except Exception as e:
         print(f"     Erreur cinema: {e}")
-        import traceback
-        traceback.print_exc()
-        return {"ok": False, "error": str(e), "seances": []}
+        return {"ok": False, "error": str(e), "films": []}
 
 
 def get_agenda():
