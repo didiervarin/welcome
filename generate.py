@@ -147,23 +147,23 @@ def meteo_html():
     return """
     <div class="meteo-main">
       <div class="meteo-icon" id="m-icon">⏳</div>
-      <div>
-        <div class="meteo-temp"><span id="m-temp">—</span><sup>°C</sup></div>
+      <div class="meteo-body">
+        <div class="meteo-hero">
+          <div class="meteo-temp"><span id="m-temp">—</span><sup>°C</sup></div>
+          <div class="meteo-rain-hero">
+            <div class="meteo-rain-val"><span id="m-rain">—</span><sup>%</sup></div>
+            <div class="meteo-rain-lbl">pluie</div>
+            <div class="bar-track bar-track-v">
+              <div class="bar-fill bar-low" id="m-bar" style="height:0%"></div>
+            </div>
+          </div>
+        </div>
         <div class="meteo-lieu" id="m-lieu" style="opacity:.5">Localisation…</div>
         <div class="meteo-desc" id="m-desc" style="opacity:.5">—</div>
         <div class="meteo-minmax">
           <span class="temp-max" id="m-max">▲ —°</span>
           <span class="temp-min" id="m-min">▼ —°</span>
         </div>
-      </div>
-    </div>
-    <div class="rain-block">
-      <div class="rain-header">
-        <div class="rain-label">Risque pluie dans l'heure</div>
-        <div class="rain-pct" id="m-rain">—%</div>
-      </div>
-      <div class="bar-track">
-        <div class="bar-fill bar-low" id="m-bar" style="width:0%"></div>
       </div>
     </div>"""
 
@@ -175,10 +175,7 @@ def ratp_html(lines):
         rows.append(f"""
       <div class="ratp-line">
         <div class="badge" style="background:{l['color']};color:{l['text']}">{l['num']}</div>
-        <div class="line-info">
-          <div class="line-name">{l['name']}</div>
-          <span class="pill {pill_cls}">{l['msg']}</span>
-        </div>
+        <span class="pill {pill_cls}">{l['msg']}</span>
       </div>""")
     return '<div class="ratp-lines">' + "".join(rows) + "</div>"
 
@@ -344,11 +341,11 @@ def build_html(ratp, velib, cinema, agenda):
       $('m-desc').style.opacity = 1;
       $('m-max').textContent  = '▲ ' + tMax + '°';
       $('m-min').textContent  = '▼ ' + tMin + '°';
-      $('m-rain').textContent = rainPct + '%';
+      $('m-rain').textContent = rainPct;
       $('m-rain').style.color = rainPct >= 40 ? 'var(--rain)' : 'var(--green)';
       setTimeout(() => {
         const bar = $('m-bar');
-        bar.style.width = rainPct + '%';
+        bar.style.height = rainPct + '%';
         bar.className = 'bar-fill ' + (rainPct >= 40 ? 'bar-rain' : 'bar-low');
       }, 300);
 
@@ -389,29 +386,32 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 .card.full{{grid-column:1/-1}}
 .card-label{{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px}}
 .card-label::after{{content:'';flex:1;height:1px;background:var(--border)}}
-.meteo-main{{display:flex;align-items:center;gap:12px;margin-bottom:12px}}
-.meteo-icon{{font-size:44px;line-height:1;flex-shrink:0}}
+.meteo-main{{display:flex;align-items:flex-start;gap:12px;margin-bottom:8px}}
+.meteo-icon{{font-size:44px;line-height:1;flex-shrink:0;margin-top:4px}}
+.meteo-body{{flex:1;min-width:0}}
+.meteo-hero{{display:flex;align-items:flex-end;gap:0;justify-content:space-between}}
 .meteo-temp{{font-family:'DM Serif Display',serif;font-size:44px;line-height:1}}
 .meteo-temp sup{{font-size:18px;vertical-align:super;color:var(--muted);font-family:'Syne',sans-serif;font-weight:400}}
-.meteo-lieu{{font-size:13px;font-weight:600;letter-spacing:.03em}}
+.meteo-rain-hero{{display:flex;flex-direction:column;align-items:center;gap:3px;padding-bottom:4px}}
+.meteo-rain-val{{font-family:'DM Serif Display',serif;font-size:44px;line-height:1;color:var(--rain)}}
+.meteo-rain-val sup{{font-size:18px;vertical-align:super;color:var(--muted);font-family:'Syne',sans-serif;font-weight:400}}
+.meteo-rain-lbl{{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.15em;color:var(--muted);text-transform:uppercase}}
+.bar-track-v{{width:5px;height:28px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;display:flex;align-items:flex-end}}
+.bar-track{{height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}}
+.bar-fill{{border-radius:3px}}
+.bar-track-v .bar-fill{{width:100%;transition:height 1s ease}}
+.bar-track .bar-fill{{height:100%}}
+.bar-rain{{background:linear-gradient(180deg,var(--accent2),#3a7bba)}}
+.bar-low{{background:linear-gradient(180deg,#7ec8c8,var(--green))}}
+.meteo-lieu{{font-size:13px;font-weight:600;letter-spacing:.03em;margin-top:6px}}
 .meteo-desc{{font-size:11px;color:var(--muted);margin-top:3px}}
 .meteo-minmax{{display:flex;gap:10px;margin-top:5px;font-family:'DM Mono',monospace;font-size:12px}}
 .temp-max{{color:var(--orange);font-weight:500}}
 .temp-min{{color:var(--accent2);font-weight:500}}
 .geo-fallback{{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace}}
-.rain-block{{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}}
-.rain-header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}}
-.rain-label{{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.05em}}
-.rain-pct{{font-family:'DM Serif Display',serif;font-size:18px;color:var(--rain)}}
-.bar-track{{height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}}
-.bar-fill{{height:100%;border-radius:3px}}
-.bar-rain{{background:linear-gradient(90deg,#3a7bba,var(--accent2))}}
-.bar-low{{background:linear-gradient(90deg,var(--green),#7ec8c8)}}
-.ratp-lines{{display:flex;flex-direction:column;gap:10px}}
+.ratp-lines{{display:flex;flex-direction:column;gap:8px}}
 .ratp-line{{display:flex;align-items:center;gap:10px}}
-.badge{{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;flex-shrink:0}}
-.line-info{{flex:1}}
-.line-name{{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.03em;margin-bottom:3px}}
+.badge{{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;flex-shrink:0}}
 .pill{{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:500;padding:3px 8px;border-radius:20px}}
 .pill::before{{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}}
 .ok{{color:var(--green);background:rgba(78,186,138,.12)}}.ok::before{{background:var(--green)}}
