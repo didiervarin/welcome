@@ -97,7 +97,7 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
     <div class="subtitle">Levallois · 8e · RATP · Vélib · Cinéma · Agenda</div>
   </div>
   <div class="datetime">
-    <div class="time-big">20 h 15</div>
+    <div class="time-big">20 h 27</div>
     <div class="date-str">Samedi 9 May 2026</div>
   </div>
 </div>
@@ -107,24 +107,24 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
     <div class="card-label">Météo</div>
     
     <div class="meteo-main">
-      <div class="meteo-icon">🌤️</div>
+      <div class="meteo-icon" id="m-icon">⏳</div>
       <div>
-        <div class="meteo-temp">23<sup>°C</sup></div>
-        <div class="meteo-lieu">📍 Des Moines </div>
-        <div class="meteo-desc">Principalement dégagé</div>
+        <div class="meteo-temp"><span id="m-temp">—</span><sup>°C</sup></div>
+        <div class="meteo-lieu" id="m-lieu" style="opacity:.5">Localisation…</div>
+        <div class="meteo-desc" id="m-desc" style="opacity:.5">—</div>
         <div class="meteo-minmax">
-          <span class="temp-max">▲ 24°</span>
-          <span class="temp-min">▼ 8°</span>
+          <span class="temp-max" id="m-max">▲ —°</span>
+          <span class="temp-min" id="m-min">▼ —°</span>
         </div>
       </div>
     </div>
     <div class="rain-block">
       <div class="rain-header">
         <div class="rain-label">Risque pluie dans l'heure</div>
-        <div class="rain-pct">4%</div>
+        <div class="rain-pct" id="m-rain">—%</div>
       </div>
       <div class="bar-track">
-        <div class="bar-fill bar-low" style="width:4%"></div>
+        <div class="bar-fill bar-low" id="m-bar" style="width:0%"></div>
       </div>
     </div>
   </div>
@@ -161,19 +161,19 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
         <div class="station-name">Voltaire - Anatole France</div>
         <div class="station-stats">
           <div class="stat">
-            <div class="stat-val bikes">5</div>
+            <div class="stat-val bikes">6</div>
             <div class="stat-lbl">Vélos</div>
           </div>
           <div class="stat-sep"></div>
           <div class="stat">
-            <div class="stat-val docks">22</div>
+            <div class="stat-val docks">21</div>
             <div class="stat-lbl">Places</div>
           </div>
         </div>
         <div class="velib-bar-wrap">
           <div class="velib-bar-track">
-            <div class="velib-bar-bikes" style="width:19%"></div>
-            <div class="velib-bar-docks" style="width:81%"></div>
+            <div class="velib-bar-bikes" style="width:22%"></div>
+            <div class="velib-bar-docks" style="width:78%"></div>
           </div>
         </div>
       </div>
@@ -182,19 +182,19 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
         <div class="station-name">François 1er - Montaigne</div>
         <div class="station-stats">
           <div class="stat">
-            <div class="stat-val bikes">11</div>
+            <div class="stat-val bikes">7</div>
             <div class="stat-lbl">Vélos</div>
           </div>
           <div class="stat-sep"></div>
           <div class="stat">
-            <div class="stat-val docks">40</div>
+            <div class="stat-val docks">44</div>
             <div class="stat-lbl">Places</div>
           </div>
         </div>
         <div class="velib-bar-wrap">
           <div class="velib-bar-track">
-            <div class="velib-bar-bikes" style="width:22%"></div>
-            <div class="velib-bar-docks" style="width:78%"></div>
+            <div class="velib-bar-bikes" style="width:14%"></div>
+            <div class="velib-bar-docks" style="width:86%"></div>
           </div>
         </div>
       </div></div>
@@ -218,9 +218,98 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
 </div>
 
 <div class="footer">
-  <div class="update-info">Générée le samedi 9 May 2026 · 20 h 15 (heure Paris)</div>
-  <div class="next-info">Prochaine mise à jour dans ~15 min</div>
+  <div class="update-info">Générée le samedi 9 May 2026 · 20 h 27 (heure Paris)</div>
+  <div class="next-info">Prochaine mise à jour dans ~3 min</div>
 </div>
 
+
+<script>
+// ── Météo dynamique via géolocalisation navigateur ──────────────────────────
+(function () {
+  const WMO_DESC = {
+    0:'Ciel dégagé',1:'Peu nuageux',2:'Partiellement nuageux',3:'Couvert',
+    45:'Brouillard',48:'Brouillard givrant',
+    51:'Bruine légère',53:'Bruine modérée',55:'Bruine dense',
+    61:'Pluie légère',63:'Pluie modérée',65:'Pluie forte',
+    71:'Neige légère',73:'Neige modérée',75:'Neige forte',
+    80:'Averses légères',81:'Averses modérées',82:'Averses violentes',
+    95:'Orage',96:'Orage avec grêle',99:'Orage violent',
+  };
+  const WMO_ICON = {
+    0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',
+    51:'🌦️',53:'🌧️',55:'🌧️',61:'🌦️',63:'🌧️',65:'🌧️',
+    71:'🌨️',73:'❄️',75:'❄️',80:'🌦️',81:'🌧️',82:'⛈️',
+    95:'⛈️',96:'⛈️',99:'⛈️',
+  };
+  const $ = id => document.getElementById(id);
+
+  function setError(msg) {
+    const el = $('m-lieu');
+    if (el) { el.textContent = '⚠ ' + msg; el.style.opacity = 1; }
+  }
+
+  async function reverseGeocode(lat, lon) {
+    try {
+      const r = await fetch(
+        'https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lon + '&format=json',
+        { headers: { 'Accept-Language': 'fr' } }
+      );
+      const d = await r.json();
+      const a = d.address || {};
+      return a.village || a.town || a.city || a.municipality || a.county || 'Ma position';
+    } catch { return 'Ma position'; }
+  }
+
+  async function loadWeather(lat, lon) {
+    const url = 'https://api.open-meteo.com/v1/forecast'
+      + '?latitude=' + lat + '&longitude=' + lon
+      + '&current=temperature_2m,weathercode'
+      + '&hourly=precipitation_probability'
+      + '&daily=temperature_2m_max,temperature_2m_min'
+      + '&timezone=auto&forecast_days=1';
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+
+  if (!navigator.geolocation) { setError('Géolocalisation non disponible'); return; }
+
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const { latitude: lat, longitude: lon } = pos.coords;
+    try {
+      const [city, data] = await Promise.all([reverseGeocode(lat, lon), loadWeather(lat, lon)]);
+
+      const nowH  = new Date().getHours();
+      const times = data.hourly.time;
+      const idx   = Math.max(0, times.findIndex(t => new Date(t).getHours() === nowH));
+
+      const temp    = Math.round(data.current.temperature_2m);
+      const code    = data.current.weathercode;
+      const rainPct = Math.round(data.hourly.precipitation_probability[idx] || 0);
+      const tMax    = Math.round(data.daily.temperature_2m_max[0]);
+      const tMin    = Math.round(data.daily.temperature_2m_min[0]);
+
+      $('m-icon').textContent = WMO_ICON[code] || '🌡️';
+      $('m-temp').textContent = temp;
+      $('m-lieu').textContent = '📍 ' + city;
+      $('m-lieu').style.opacity = 1;
+      $('m-desc').textContent = WMO_DESC[code] || '';
+      $('m-desc').style.opacity = 1;
+      $('m-max').textContent  = '▲ ' + tMax + '°';
+      $('m-min').textContent  = '▼ ' + tMin + '°';
+      $('m-rain').textContent = rainPct + '%';
+      $('m-rain').style.color = rainPct >= 40 ? 'var(--rain)' : 'var(--green)';
+      setTimeout(() => {
+        const bar = $('m-bar');
+        bar.style.width = rainPct + '%';
+        bar.className = 'bar-fill ' + (rainPct >= 40 ? 'bar-rain' : 'bar-low');
+      }, 300);
+
+    } catch (e) { setError('Météo indisponible'); }
+
+  }, () => { setError('Localisation refusée'); },
+  { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+})();
+</script>
 </body>
 </html>
