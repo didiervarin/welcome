@@ -53,7 +53,7 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
 .temp-min{color:var(--accent2);font-weight:500}
 .geo-fallback{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace}
 .ratp-lines{display:flex;flex-direction:row;gap:12px;flex-wrap:wrap}
-.ratp-line{display:flex;align-items:center;gap:10px}
+.ratp-line{display:flex;flex-direction:column;align-items:center;gap:6px}
 .badge{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;flex-shrink:0}
 .pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:500;padding:3px 8px;border-radius:20px}
 .pill::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
@@ -100,7 +100,7 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
     <div class="subtitle">Levallois · 8e · RATP · Vélib · Cinéma · Agenda</div>
   </div>
   <div class="datetime">
-    <div class="time-big">22 h 15</div>
+    <div class="time-big">22 h 16</div>
     <div class="date-str">Samedi 9 May 2026</div>
   </div>
 </div>
@@ -212,8 +212,8 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
 </div>
 
 <div class="footer">
-  <div class="update-info">Générée le samedi 9 May 2026 · 22 h 15 (heure Paris)</div>
-  <div class="next-info">Prochaine mise à jour dans ~15 min</div>
+  <div class="update-info">Générée le samedi 9 May 2026 · 22 h 16 (heure Paris)</div>
+  <div class="next-info">Prochaine mise à jour dans ~14 min</div>
 </div>
 
 
@@ -292,7 +292,6 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
       $('m-max').textContent  = '▲ ' + tMax + '°';
       $('m-min').textContent  = '▼ ' + tMin + '°';
       $('m-rain').textContent = rainPct;
-      $('m-rain').style.color = rainPct >= 40 ? 'var(--rain)' : 'var(--green)';
       setTimeout(() => {
         const bar = $('m-bar');
         bar.style.height = rainPct + '%';
