@@ -35,7 +35,10 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
 .meteo-temp sup{font-size:18px;vertical-align:super;color:var(--muted);font-family:'Syne',sans-serif;font-weight:400}
 .meteo-lieu{font-size:13px;font-weight:600;letter-spacing:.03em}
 .meteo-desc{font-size:11px;color:var(--muted);margin-top:3px}
-.meteo-slot{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
+.meteo-minmax{display:flex;gap:10px;margin-top:5px;font-family:'DM Mono',monospace;font-size:12px}
+.temp-max{color:var(--orange);font-weight:500}
+.temp-min{color:var(--accent2);font-weight:500}
+.geo-fallback{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace}
 .rain-block{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
 .rain-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .rain-label{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.05em}
@@ -94,7 +97,7 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
     <div class="subtitle">Levallois · 8e · RATP · Vélib · Cinéma · Agenda</div>
   </div>
   <div class="datetime">
-    <div class="time-big">20 h 04</div>
+    <div class="time-big">20 h 12</div>
     <div class="date-str">Samedi 9 May 2026</div>
   </div>
 </div>
@@ -104,21 +107,24 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
     <div class="card-label">Météo</div>
     
     <div class="meteo-main">
-      <div class="meteo-icon">🌤️</div>
+      <div class="meteo-icon">☁️</div>
       <div>
-        <div class="meteo-temp">23<sup>°C</sup></div>
-        <div class="meteo-lieu">Paris 8e</div>
-        <div class="meteo-desc">Partiellement nuageux</div>
-        <div class="meteo-slot">12 h – 23 h 59</div>
+        <div class="meteo-temp">24<sup>°C</sup></div>
+        <div class="meteo-lieu">📍 Boydton </div>
+        <div class="meteo-desc">Couvert</div>
+        <div class="meteo-minmax">
+          <span class="temp-max">▲ 25°</span>
+          <span class="temp-min">▼ 8°</span>
+        </div>
       </div>
     </div>
     <div class="rain-block">
       <div class="rain-header">
         <div class="rain-label">Risque pluie dans l'heure</div>
-        <div class="rain-pct">0%</div>
+        <div class="rain-pct">1%</div>
       </div>
       <div class="bar-track">
-        <div class="bar-fill bar-low" style="width:0%"></div>
+        <div class="bar-fill bar-low" style="width:1%"></div>
       </div>
     </div>
   </div>
@@ -155,19 +161,19 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
         <div class="station-name">Voltaire - Anatole France</div>
         <div class="station-stats">
           <div class="stat">
-            <div class="stat-val bikes">6</div>
+            <div class="stat-val bikes">5</div>
             <div class="stat-lbl">Vélos</div>
           </div>
           <div class="stat-sep"></div>
           <div class="stat">
-            <div class="stat-val docks">21</div>
+            <div class="stat-val docks">22</div>
             <div class="stat-lbl">Places</div>
           </div>
         </div>
         <div class="velib-bar-wrap">
           <div class="velib-bar-track">
-            <div class="velib-bar-bikes" style="width:22%"></div>
-            <div class="velib-bar-docks" style="width:78%"></div>
+            <div class="velib-bar-bikes" style="width:19%"></div>
+            <div class="velib-bar-docks" style="width:81%"></div>
           </div>
         </div>
       </div>
@@ -176,19 +182,19 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
         <div class="station-name">François 1er - Montaigne</div>
         <div class="station-stats">
           <div class="stat">
-            <div class="stat-val bikes">12</div>
+            <div class="stat-val bikes">10</div>
             <div class="stat-lbl">Vélos</div>
           </div>
           <div class="stat-sep"></div>
           <div class="stat">
-            <div class="stat-val docks">39</div>
+            <div class="stat-val docks">41</div>
             <div class="stat-lbl">Places</div>
           </div>
         </div>
         <div class="velib-bar-wrap">
           <div class="velib-bar-track">
-            <div class="velib-bar-bikes" style="width:24%"></div>
-            <div class="velib-bar-docks" style="width:76%"></div>
+            <div class="velib-bar-bikes" style="width:20%"></div>
+            <div class="velib-bar-docks" style="width:80%"></div>
           </div>
         </div>
       </div></div>
@@ -212,8 +218,8 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
 </div>
 
 <div class="footer">
-  <div class="update-info">Générée le samedi 9 May 2026 · 20 h 04 (heure Paris)</div>
-  <div class="next-info">Prochaine mise à jour dans ~11 min</div>
+  <div class="update-info">Générée le samedi 9 May 2026 · 20 h 12 (heure Paris)</div>
+  <div class="next-info">Prochaine mise à jour dans ~3 min</div>
 </div>
 
 </body>
