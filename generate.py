@@ -52,33 +52,58 @@ def weather_desc(code):
     return m.get(code, "Conditions inconnues")
 
 
+# ── Géolocalisation ───────────────────────────────────────────────────────────
+
+def get_location():
+    """Géolocalise via l'IP publique (fonctionne en GitHub Actions et en local)."""
+    try:
+        d = fetch("https://ipapi.co/json/")
+        lat  = float(d["latitude"])
+        lon  = float(d["longitude"])
+        city = d.get("city", d.get("region", "Localisation inconnue"))
+        return {"ok": True, "lat": lat, "lon": lon, "city": city}
+    except Exception as e:
+        # Fallback : Paris centre
+        print(f"     Géolocalisation échouée ({e}), fallback Paris")
+        return {"ok": False, "lat": 48.8566, "lon": 2.3522, "city": "Paris"}
+
+
 # ── Météo ─────────────────────────────────────────────────────────────────────
 
 def get_meteo():
-    lat  = 48.8924 if matin else 48.8737
-    lon  = 2.2872  if matin else 2.3088
-    lieu = "Levallois-Perret" if matin else "Paris 8e"
-    slot = "0 h – 11 h 59"   if matin else "12 h – 23 h 59"
+    loc  = get_location()
+    lat  = loc["lat"]
+    lon  = loc["lon"]
+    lieu = loc["city"]
 
     try:
         url = (
             f"https://api.open-meteo.com/v1/forecast"
             f"?latitude={lat}&longitude={lon}"
             f"&hourly=temperature_2m,precipitation_probability,weathercode"
+            f"&daily=temperature_2m_max,temperature_2m_min"
             f"&forecast_days=1&timezone=Europe%2FParis"
         )
         d = fetch(url)
-        h_next = (heure + 1) % 24
+
+        temp_now  = round(d["hourly"]["temperature_2m"][heure])
+        rain_now  = d["hourly"]["precipitation_probability"][heure]
+        code_now  = d["hourly"]["weathercode"][heure]
+        temp_max  = round(d["daily"]["temperature_2m_max"][0])
+        temp_min  = round(d["daily"]["temperature_2m_min"][0])
+
         return {
-            "ok": True,
-            "temp": round(d["hourly"]["temperature_2m"][heure]),
-            "rain": d["hourly"]["precipitation_probability"][h_next],
-            "code": d["hourly"]["weathercode"][heure],
-            "lieu": lieu,
-            "slot": slot,
+            "ok":       True,
+            "temp":     temp_now,
+            "temp_max": temp_max,
+            "temp_min": temp_min,
+            "rain":     rain_now,
+            "code":     code_now,
+            "lieu":     lieu,
+            "geo_ok":   loc["ok"],
         }
     except Exception as e:
-        return {"ok": False, "error": str(e), "lieu": lieu, "slot": slot}
+        return {"ok": False, "error": str(e), "lieu": lieu}
 
 
 # ── RATP ──────────────────────────────────────────────────────────────────────
@@ -172,15 +197,19 @@ def meteo_html(m):
     desc = weather_desc(m["code"])
     rain = m["rain"]
     bar_class = "bar-rain" if rain >= 40 else "bar-low"
+    geo_badge = "" if m.get("geo_ok", True) else '<span class="geo-fallback">fallback</span>'
 
     return f"""
     <div class="meteo-main">
       <div class="meteo-icon">{icon}</div>
       <div>
         <div class="meteo-temp">{m['temp']}<sup>°C</sup></div>
-        <div class="meteo-lieu">{m['lieu']}</div>
+        <div class="meteo-lieu">📍 {m['lieu']} {geo_badge}</div>
         <div class="meteo-desc">{desc}</div>
-        <div class="meteo-slot">{m['slot']}</div>
+        <div class="meteo-minmax">
+          <span class="temp-max">▲ {m['temp_max']}°</span>
+          <span class="temp-min">▼ {m['temp_min']}°</span>
+        </div>
       </div>
     </div>
     <div class="rain-block">
@@ -332,7 +361,10 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 .meteo-temp sup{{font-size:18px;vertical-align:super;color:var(--muted);font-family:'Syne',sans-serif;font-weight:400}}
 .meteo-lieu{{font-size:13px;font-weight:600;letter-spacing:.03em}}
 .meteo-desc{{font-size:11px;color:var(--muted);margin-top:3px}}
-.meteo-slot{{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}}
+.meteo-minmax{{display:flex;gap:10px;margin-top:5px;font-family:'DM Mono',monospace;font-size:12px}}
+.temp-max{{color:var(--orange);font-weight:500}}
+.temp-min{{color:var(--accent2);font-weight:500}}
+.geo-fallback{{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace}}
 .rain-block{{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}}
 .rain-header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}}
 .rain-label{{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.05em}}
