@@ -342,7 +342,6 @@ def build_html(ratp, velib, cinema, agenda):
       $('m-max').textContent  = '▲ ' + tMax + '°';
       $('m-min').textContent  = '▼ ' + tMin + '°';
       $('m-rain').textContent = rainPct;
-      $('m-rain').style.color = rainPct >= 40 ? 'var(--rain)' : 'var(--green)';
       setTimeout(() => {
         const bar = $('m-bar');
         bar.style.height = rainPct + '%';
@@ -410,7 +409,7 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 .temp-min{{color:var(--accent2);font-weight:500}}
 .geo-fallback{{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace}}
 .ratp-lines{{display:flex;flex-direction:row;gap:12px;flex-wrap:wrap}}
-.ratp-line{{display:flex;align-items:center;gap:10px}}
+.ratp-line{{display:flex;flex-direction:column;align-items:center;gap:6px}}
 .badge{{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;flex-shrink:0}}
 .pill{{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:500;padding:3px 8px;border-radius:20px}}
 .pill::before{{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}}
