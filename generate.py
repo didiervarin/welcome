@@ -54,56 +54,9 @@ def weather_desc(code):
 
 # ── Géolocalisation ───────────────────────────────────────────────────────────
 
-def get_location():
-    """Géolocalise via l'IP publique (fonctionne en GitHub Actions et en local)."""
-    try:
-        d = fetch("https://ipapi.co/json/")
-        lat  = float(d["latitude"])
-        lon  = float(d["longitude"])
-        city = d.get("city", d.get("region", "Localisation inconnue"))
-        return {"ok": True, "lat": lat, "lon": lon, "city": city}
-    except Exception as e:
-        # Fallback : Paris centre
-        print(f"     Géolocalisation échouée ({e}), fallback Paris")
-        return {"ok": False, "lat": 48.8566, "lon": 2.3522, "city": "Paris"}
-
-
 # ── Météo ─────────────────────────────────────────────────────────────────────
-
-def get_meteo():
-    loc  = get_location()
-    lat  = loc["lat"]
-    lon  = loc["lon"]
-    lieu = loc["city"]
-
-    try:
-        url = (
-            f"https://api.open-meteo.com/v1/forecast"
-            f"?latitude={lat}&longitude={lon}"
-            f"&hourly=temperature_2m,precipitation_probability,weathercode"
-            f"&daily=temperature_2m_max,temperature_2m_min"
-            f"&forecast_days=1&timezone=Europe%2FParis"
-        )
-        d = fetch(url)
-
-        temp_now  = round(d["hourly"]["temperature_2m"][heure])
-        rain_now  = d["hourly"]["precipitation_probability"][heure]
-        code_now  = d["hourly"]["weathercode"][heure]
-        temp_max  = round(d["daily"]["temperature_2m_max"][0])
-        temp_min  = round(d["daily"]["temperature_2m_min"][0])
-
-        return {
-            "ok":       True,
-            "temp":     temp_now,
-            "temp_max": temp_max,
-            "temp_min": temp_min,
-            "rain":     rain_now,
-            "code":     code_now,
-            "lieu":     lieu,
-            "geo_ok":   loc["ok"],
-        }
-    except Exception as e:
-        return {"ok": False, "error": str(e), "lieu": lieu}
+# La météo est chargée côté navigateur via navigator.geolocation (voir JS dans build_html).
+# get_meteo() n'est plus appelé côté serveur.
 
 
 # ── RATP ──────────────────────────────────────────────────────────────────────
@@ -189,36 +142,28 @@ def get_velib():
 
 # ── Génération HTML ───────────────────────────────────────────────────────────
 
-def meteo_html(m):
-    if not m["ok"]:
-        return f'<div class="error">⚠ Météo indisponible — {m.get("error","")}</div>'
-
-    icon = weather_icon(m["code"])
-    desc = weather_desc(m["code"])
-    rain = m["rain"]
-    bar_class = "bar-rain" if rain >= 40 else "bar-low"
-    geo_badge = "" if m.get("geo_ok", True) else '<span class="geo-fallback">fallback</span>'
-
-    return f"""
+def meteo_html():
+    """Renvoie le HTML statique de la carte météo — rempli dynamiquement par JS au chargement."""
+    return """
     <div class="meteo-main">
-      <div class="meteo-icon">{icon}</div>
+      <div class="meteo-icon" id="m-icon">⏳</div>
       <div>
-        <div class="meteo-temp">{m['temp']}<sup>°C</sup></div>
-        <div class="meteo-lieu">📍 {m['lieu']} {geo_badge}</div>
-        <div class="meteo-desc">{desc}</div>
+        <div class="meteo-temp"><span id="m-temp">—</span><sup>°C</sup></div>
+        <div class="meteo-lieu" id="m-lieu" style="opacity:.5">Localisation…</div>
+        <div class="meteo-desc" id="m-desc" style="opacity:.5">—</div>
         <div class="meteo-minmax">
-          <span class="temp-max">▲ {m['temp_max']}°</span>
-          <span class="temp-min">▼ {m['temp_min']}°</span>
+          <span class="temp-max" id="m-max">▲ —°</span>
+          <span class="temp-min" id="m-min">▼ —°</span>
         </div>
       </div>
     </div>
     <div class="rain-block">
       <div class="rain-header">
         <div class="rain-label">Risque pluie dans l'heure</div>
-        <div class="rain-pct">{rain}%</div>
+        <div class="rain-pct" id="m-rain">—%</div>
       </div>
       <div class="bar-track">
-        <div class="bar-fill {bar_class}" style="width:{rain}%"></div>
+        <div class="bar-fill bar-low" id="m-bar" style="width:0%"></div>
       </div>
     </div>"""
 
@@ -312,7 +257,7 @@ def cinema_html(cinema):
         rows.append(f'<div class="cinema-film">🎬 {f}</div>')
     return '<div class="cinema-list">' + "".join(rows) + '</div>'
 
-def build_html(meteo, ratp, velib, cinema, agenda):
+def build_html(ratp, velib, cinema, agenda):
     ts = now.strftime("%-d %B %Y · %H h %M")
     # Calcul des minutes avant la prochaine échéance (00, 15, 30, 45)
     m = now.minute
@@ -324,6 +269,95 @@ def build_html(meteo, ratp, velib, cinema, agenda):
     jours = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"]
     jour = jours[now.weekday()]
 
+    meteo_js = """
+<script>
+// ── Météo dynamique via géolocalisation navigateur ──────────────────────────
+(function () {
+  const WMO_DESC = {
+    0:'Ciel dégagé',1:'Peu nuageux',2:'Partiellement nuageux',3:'Couvert',
+    45:'Brouillard',48:'Brouillard givrant',
+    51:'Bruine légère',53:'Bruine modérée',55:'Bruine dense',
+    61:'Pluie légère',63:'Pluie modérée',65:'Pluie forte',
+    71:'Neige légère',73:'Neige modérée',75:'Neige forte',
+    80:'Averses légères',81:'Averses modérées',82:'Averses violentes',
+    95:'Orage',96:'Orage avec grêle',99:'Orage violent',
+  };
+  const WMO_ICON = {
+    0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',
+    51:'🌦️',53:'🌧️',55:'🌧️',61:'🌦️',63:'🌧️',65:'🌧️',
+    71:'🌨️',73:'❄️',75:'❄️',80:'🌦️',81:'🌧️',82:'⛈️',
+    95:'⛈️',96:'⛈️',99:'⛈️',
+  };
+  const $ = id => document.getElementById(id);
+
+  function setError(msg) {
+    const el = $('m-lieu');
+    if (el) { el.textContent = '⚠ ' + msg; el.style.opacity = 1; }
+  }
+
+  async function reverseGeocode(lat, lon) {
+    try {
+      const r = await fetch(
+        'https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lon + '&format=json',
+        { headers: { 'Accept-Language': 'fr' } }
+      );
+      const d = await r.json();
+      const a = d.address || {};
+      return a.village || a.town || a.city || a.municipality || a.county || 'Ma position';
+    } catch { return 'Ma position'; }
+  }
+
+  async function loadWeather(lat, lon) {
+    const url = 'https://api.open-meteo.com/v1/forecast'
+      + '?latitude=' + lat + '&longitude=' + lon
+      + '&current=temperature_2m,weathercode'
+      + '&hourly=precipitation_probability'
+      + '&daily=temperature_2m_max,temperature_2m_min'
+      + '&timezone=auto&forecast_days=1';
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+
+  if (!navigator.geolocation) { setError('Géolocalisation non disponible'); return; }
+
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const { latitude: lat, longitude: lon } = pos.coords;
+    try {
+      const [city, data] = await Promise.all([reverseGeocode(lat, lon), loadWeather(lat, lon)]);
+
+      const nowH  = new Date().getHours();
+      const times = data.hourly.time;
+      const idx   = Math.max(0, times.findIndex(t => new Date(t).getHours() === nowH));
+
+      const temp    = Math.round(data.current.temperature_2m);
+      const code    = data.current.weathercode;
+      const rainPct = Math.round(data.hourly.precipitation_probability[idx] || 0);
+      const tMax    = Math.round(data.daily.temperature_2m_max[0]);
+      const tMin    = Math.round(data.daily.temperature_2m_min[0]);
+
+      $('m-icon').textContent = WMO_ICON[code] || '🌡️';
+      $('m-temp').textContent = temp;
+      $('m-lieu').textContent = '📍 ' + city;
+      $('m-lieu').style.opacity = 1;
+      $('m-desc').textContent = WMO_DESC[code] || '';
+      $('m-desc').style.opacity = 1;
+      $('m-max').textContent  = '▲ ' + tMax + '°';
+      $('m-min').textContent  = '▼ ' + tMin + '°';
+      $('m-rain').textContent = rainPct + '%';
+      $('m-rain').style.color = rainPct >= 40 ? 'var(--rain)' : 'var(--green)';
+      setTimeout(() => {
+        const bar = $('m-bar');
+        bar.style.width = rainPct + '%';
+        bar.className = 'bar-fill ' + (rainPct >= 40 ? 'bar-rain' : 'bar-low');
+      }, 300);
+
+    } catch (e) { setError('Météo indisponible'); }
+
+  }, () => { setError('Localisation refusée'); },
+  { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+})();
+</script>"""
     return f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -431,7 +465,7 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 <div class="grid">
   <div class="card">
     <div class="card-label">Météo</div>
-    {meteo_html(meteo)}
+    {meteo_html()}
   </div>
   <div class="card">
     <div class="card-label">RATP · Lignes 1 · 2 · 3</div>
@@ -456,6 +490,7 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
   <div class="next-info">Prochaine mise à jour dans ~{next_update_min} min</div>
 </div>
 
+{meteo_js}
 </body>
 </html>"""
 
@@ -663,10 +698,6 @@ def get_agenda():
 if __name__ == "__main__":
     print(f"[{now.strftime('%H:%M')}] Génération du dashboard…")
 
-    print("  → Météo…")
-    meteo = get_meteo()
-    print(f"     {meteo}")
-
     print("  → RATP…")
     ratp = get_ratp()
     print(f"     {ratp}")
@@ -683,7 +714,7 @@ if __name__ == "__main__":
     agenda = get_agenda()
     print(f"     {agenda}")
 
-    html = build_html(meteo, ratp, velib, cinema, agenda)
+    html = build_html(ratp, velib, cinema, agenda)
 
     os.makedirs("docs", exist_ok=True)
     with open("docs/index.html", "w", encoding="utf-8") as f:
