@@ -171,41 +171,24 @@ def ratp_html(lines):
 
 
 def velib_html(stations):
-    cards = []
+    rows = []
     for s in stations:
         if not s["ok"]:
-            cards.append(f"""
-      <div class="station">
-        <div class="station-id"># {s['id']}</div>
-        <div class="station-name">{s['name']}</div>
-        <div class="error">Station introuvable</div>
-      </div>""")
+            rows.append(f"""
+      <div class="vl-name">{s['name']}</div>
+      <div class="vl-val error">—</div>
+      <div class="vl-val error">—</div>""")
             continue
+        rows.append(f"""
+      <div class="vl-name">{s['name']}</div>
+      <div class="vl-val bikes">{s['bikes']}</div>
+      <div class="vl-val docks">{s['docks']}</div>""")
 
-        cards.append(f"""
-      <div class="station">
-        <div class="station-id"># {s['id']}</div>
-        <div class="station-name">{s['name']}</div>
-        <div class="station-stats">
-          <div class="stat">
-            <div class="stat-val bikes">{s['bikes']}</div>
-            <div class="stat-lbl">Vélos</div>
-          </div>
-          <div class="stat-sep"></div>
-          <div class="stat">
-            <div class="stat-val docks">{s['docks']}</div>
-            <div class="stat-lbl">Places</div>
-          </div>
-        </div>
-        <div class="velib-bar-wrap">
-          <div class="velib-bar-track">
-            <div class="velib-bar-bikes" style="width:{s['pct_bikes']}%"></div>
-            <div class="velib-bar-docks" style="width:{s['pct_docks']}%"></div>
-          </div>
-        </div>
-      </div>""")
-
-    return '<div class="velib-grid">' + "".join(cards) + "</div>"
+    header = """
+      <div class="vl-hdr"></div>
+      <div class="vl-hdr">🚲 Vélos</div>
+      <div class="vl-hdr">🅿 Places</div>"""
+    return '<div class="velib-grid">' + header + "".join(rows) + "</div>"
 
 
 
@@ -396,20 +379,11 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 .ok{{color:var(--green);background:rgba(78,186,138,.12)}}.ok::before{{background:var(--green)}}
 .warn{{color:var(--orange);background:rgba(232,146,58,.12)}}.warn::before{{background:var(--orange)}}
 .err{{color:var(--red);background:rgba(224,92,92,.12)}}.err::before{{background:var(--red)}}
-.velib-grid{{display:grid;grid-template-columns:1fr 1fr;gap:10px}}
-.station{{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px}}
-.station-id{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.1em;margin-bottom:2px}}
-.station-name{{font-size:12px;font-weight:600;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
-.station-stats{{display:flex;align-items:center;gap:12px}}
-.stat{{display:flex;flex-direction:column;gap:2px}}
-.stat-val{{font-family:'DM Serif Display',serif;font-size:32px;line-height:1}}
-.stat-lbl{{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.08em;text-transform:uppercase}}
+.velib-grid{{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;row-gap:8px}}
+.vl-hdr{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;text-align:center;padding-bottom:4px;border-bottom:1px solid var(--border)}}
+.vl-name{{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+.vl-val{{font-family:'DM Serif Display',serif;font-size:32px;line-height:1;text-align:center}}
 .bikes{{color:var(--accent)}}.docks{{color:var(--accent2)}}
-.stat-sep{{width:1px;height:34px;background:var(--border)}}
-.velib-bar-wrap{{margin-top:8px}}
-.velib-bar-track{{height:3px;background:rgba(255,255,255,.06);border-radius:2px;display:flex;gap:1px}}
-.velib-bar-bikes{{height:100%;background:var(--accent);border-radius:2px}}
-.velib-bar-docks{{height:100%;background:var(--accent2);border-radius:2px}}
 .error{{color:var(--red);font-size:11px;font-family:'DM Mono',monospace;padding:4px 0}}
 .agenda-list{{display:flex;flex-direction:column;gap:4px}}
 .agenda-jour{{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;margin-top:8px;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border)}}
