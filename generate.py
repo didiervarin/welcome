@@ -158,12 +158,14 @@ def meteo_html():
             </div>
           </div>
         </div>
-        <div class="meteo-lieu" id="m-lieu" style="opacity:.5">Localisation…</div>
-        <div class="meteo-desc" id="m-desc" style="opacity:.5">—</div>
-        <div class="meteo-minmax">
-          <span class="temp-max" id="m-max">▲ —°</span>
-          <span class="temp-min" id="m-min">▼ —°</span>
+        <div class="meteo-lieu-row">
+          <div class="meteo-lieu" id="m-lieu" style="opacity:.5">Localisation…</div>
+          <div class="meteo-minmax">
+            <span class="temp-max" id="m-max">▲ —°</span>
+            <span class="temp-min" id="m-min">▼ —°</span>
+          </div>
         </div>
+        <div class="meteo-desc" id="m-desc" style="opacity:.5">—</div>
       </div>
     </div>"""
 
@@ -402,9 +404,10 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 .bar-track .bar-fill{{height:100%}}
 .bar-rain{{background:linear-gradient(180deg,var(--accent2),#3a7bba)}}
 .bar-low{{background:linear-gradient(180deg,#7ec8c8,var(--green))}}
-.meteo-lieu{{font-size:13px;font-weight:600;letter-spacing:.03em;margin-top:6px}}
+.meteo-lieu-row{{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:6px}}
+.meteo-lieu{{font-size:13px;font-weight:600;letter-spacing:.03em}}
 .meteo-desc{{font-size:11px;color:var(--muted);margin-top:3px}}
-.meteo-minmax{{display:flex;gap:10px;margin-top:5px;font-family:'DM Mono',monospace;font-size:12px}}
+.meteo-minmax{{display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:11px;flex-shrink:0}}
 .temp-max{{color:var(--orange);font-weight:500}}
 .temp-min{{color:var(--accent2);font-weight:500}}
 .geo-fallback{{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace}}
