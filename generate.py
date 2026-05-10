@@ -145,27 +145,15 @@ def get_velib():
 def meteo_html():
     """Renvoie le HTML statique de la carte météo — rempli dynamiquement par JS au chargement."""
     return """
-    <div class="meteo-main">
-      <div class="meteo-icon" id="m-icon">⏳</div>
-      <div class="meteo-body">
-        <div class="meteo-hero">
-          <div class="meteo-temp"><span id="m-temp">—</span><sup>°C</sup></div>
-          <div class="meteo-rain-hero">
-            <div class="meteo-rain-val"><span id="m-rain">—</span><sup>%</sup></div>
-            <div class="meteo-rain-lbl">pluie</div>
-            <div class="bar-track bar-track-v">
-              <div class="bar-fill bar-low" id="m-bar" style="height:0%"></div>
-            </div>
-          </div>
-        </div>
-        <div class="meteo-lieu-row">
-          <div class="meteo-lieu" id="m-lieu" style="opacity:.5">Localisation…</div>
-          <div class="meteo-desc" id="m-desc" style="opacity:.5">—</div>
-          <div class="meteo-minmax">
-            <span class="temp-max" id="m-max">▲ —°</span>
-            <span class="temp-min" id="m-min">▼ —°</span>
-          </div>
-        </div>
+    <div class="meteo-grid">
+      <div class="meteo-cell meteo-icon" id="m-icon">⏳</div>
+      <div class="meteo-cell meteo-temp"><span id="m-temp">—</span><sup>°C</sup></div>
+      <div class="meteo-cell meteo-rain-val"><span id="m-rain">—</span><sup>%</sup></div>
+      <div class="meteo-cell meteo-lieu" id="m-lieu" style="opacity:.5">Localisation…</div>
+      <div class="meteo-cell meteo-desc" id="m-desc" style="opacity:.5">—</div>
+      <div class="meteo-cell meteo-minmax">
+        <span class="temp-max" id="m-max">▲ —°</span>
+        <span class="temp-min" id="m-min">▼ —°</span>
       </div>
     </div>"""
 
@@ -387,27 +375,16 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 .card.full{{grid-column:1/-1}}
 .card-label{{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px}}
 .card-label::after{{content:'';flex:1;height:1px;background:var(--border)}}
-.meteo-main{{display:flex;align-items:flex-start;gap:12px;margin-bottom:8px}}
-.meteo-icon{{font-size:44px;line-height:1;flex-shrink:0;margin-top:4px}}
-.meteo-body{{flex:1;min-width:0}}
-.meteo-hero{{display:flex;align-items:baseline;gap:0;justify-content:space-between}}
-.meteo-temp{{font-family:'DM Serif Display',serif;font-size:44px;line-height:1}}
+.meteo-grid{{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;row-gap:6px;margin-bottom:8px}}
+.meteo-cell{{min-width:0}}
+.meteo-icon{{font-size:44px;line-height:1;text-align:center}}
+.meteo-temp{{font-family:'DM Serif Display',serif;font-size:44px;line-height:1;text-align:center}}
 .meteo-temp sup{{font-size:18px;vertical-align:super;color:var(--muted);font-family:'Syne',sans-serif;font-weight:400}}
-.meteo-rain-hero{{display:flex;flex-direction:column;align-items:center;gap:3px;padding-bottom:4px}}
-.meteo-rain-val{{font-family:'DM Serif Display',serif;font-size:44px;line-height:1;color:var(--text)}}
+.meteo-rain-val{{font-family:'DM Serif Display',serif;font-size:44px;line-height:1;color:var(--text);text-align:center}}
 .meteo-rain-val sup{{font-size:18px;vertical-align:super;color:var(--muted);font-family:'Syne',sans-serif;font-weight:400}}
-.meteo-rain-lbl{{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.15em;color:var(--muted);text-transform:uppercase}}
-.bar-track-v{{width:5px;height:28px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;display:flex;align-items:flex-end}}
-.bar-track{{height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}}
-.bar-fill{{border-radius:3px}}
-.bar-track-v .bar-fill{{width:100%;transition:height 1s ease}}
-.bar-track .bar-fill{{height:100%}}
-.bar-rain{{background:linear-gradient(180deg,var(--accent2),#3a7bba)}}
-.bar-low{{background:linear-gradient(180deg,#7ec8c8,var(--green))}}
-.meteo-lieu-row{{display:flex;align-items:baseline;gap:8px;margin-top:6px}}
-.meteo-lieu{{font-size:13px;font-weight:600;letter-spacing:.03em}}
-.meteo-desc{{font-size:11px;color:var(--muted);flex-shrink:0}}
-.meteo-minmax{{display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:11px;flex-shrink:0;margin-left:auto}}
+.meteo-lieu{{font-size:13px;font-weight:600;letter-spacing:.03em;text-align:center}}
+.meteo-desc{{font-size:11px;color:var(--muted);text-align:center}}
+.meteo-minmax{{display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:11px;justify-content:center}}
 .temp-max{{color:var(--orange);font-weight:500}}
 .temp-min{{color:var(--accent2);font-weight:500}}
 .geo-fallback{{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace}}
