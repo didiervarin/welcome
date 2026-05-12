@@ -230,7 +230,7 @@ def cinema_html(cinema):
 def build_html(ratp, velib, cinema, agenda):
     MOIS_FR = ["janvier","février","mars","avril","mai","juin",
                "juillet","août","septembre","octobre","novembre","décembre"]
-    ts = f"{now.day} {MOIS_FR[now.month-1]} {now.year} · {now.strftime('%H h %M')}"
+    ts = f"{now.day}\u202f{MOIS_FR[now.month-1]}\u202f{now.strftime('%y')} \u00b7 {now.strftime('%H')}\u202fh\u202f{now.strftime('%M')}"
     # Calcul des minutes avant la prochaine échéance (00, 15, 30, 45)
     m = now.minute
     next_slot = ((m // 15) + 1) * 15
@@ -314,8 +314,8 @@ def build_html(ratp, velib, cinema, agenda):
       $('m-lieu').style.opacity = 1;
       $('m-desc').textContent = WMO_DESC[code] || '';
       $('m-desc').style.opacity = 1;
-      $('m-max').textContent  = '▲ ' + tMax + '°';
-      $('m-min').textContent  = '▼ ' + tMin + '°';
+      $('m-max').textContent  = '▲\u202f' + String(tMax).padStart(2,'\u2007') + '°';
+      $('m-min').textContent  = '▼\u202f' + String(tMin).padStart(2,'\u2007') + '°';
       $('m-rain').textContent = rainPct;
       setTimeout(() => {
         const bar = $('m-bar');
@@ -408,10 +408,10 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 
 <div class="header">
   <div class="header-left">
-    <div class="title">{jour} {ts.split('·')[0].strip()}</div>
+    <div class="title">{jour}\u202f{ts.split('\u00b7')[0].strip()}</div>
   </div>
   <div class="datetime">
-    <div class="time-big">{now.strftime('%H h %M')}</div>
+    <div class="time-big">{now.strftime('%H')}\u202fh\u202f{now.strftime('%M')}</div>
   </div>
 </div>
 
