@@ -152,8 +152,8 @@ def meteo_html():
       <div class="meteo-cell meteo-lieu" id="m-lieu" style="opacity:.5">Localisation…</div>
       <div class="meteo-cell meteo-desc" id="m-desc" style="opacity:.5">—</div>
       <div class="meteo-cell meteo-minmax">
-        <span class="temp-max" id="m-max">▲ —°</span>
-        <span class="temp-min" id="m-min">▼ —°</span>
+        <div class="temp-max" id="m-max">▲ —°</div>
+        <div class="temp-min" id="m-min">▼ —°</div>
       </div>
     </div>"""
 
@@ -228,7 +228,9 @@ def cinema_html(cinema):
     return '<div class="cinema-list">' + "".join(rows) + '</div>'
 
 def build_html(ratp, velib, cinema, agenda):
-    ts = now.strftime("%-d %B %Y · %H h %M")
+    MOIS_FR = ["janvier","février","mars","avril","mai","juin",
+               "juillet","août","septembre","octobre","novembre","décembre"]
+    ts = f"{now.day} {MOIS_FR[now.month-1]} {now.year} · {now.strftime('%H h %M')}"
     # Calcul des minutes avant la prochaine échéance (00, 15, 30, 45)
     m = now.minute
     next_slot = ((m // 15) + 1) * 15
@@ -347,7 +349,7 @@ html{{-webkit-text-size-adjust:100%}}
 body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:env(safe-area-inset-top,16px) 14px env(safe-area-inset-bottom,16px)}}
 .header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--border)}}
 .header-left{{display:flex;flex-direction:column;gap:3px}}
-.title{{font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent)}}
+.title{{font-family:'DM Mono',monospace;font-size:20px;color:var(--text);letter-spacing:.05em}}
 .subtitle{{display:none}}
 .datetime{{text-align:right}}
 .time-big{{font-family:'DM Mono',monospace;font-size:20px;color:var(--text);letter-spacing:.05em}}
@@ -367,7 +369,7 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 .meteo-rain-val sup{{font-size:18px;vertical-align:super;color:var(--muted);font-family:'Syne',sans-serif;font-weight:400}}
 .meteo-lieu{{font-size:13px;font-weight:600;letter-spacing:.03em;text-align:center}}
 .meteo-desc{{font-size:13px;font-weight:600;letter-spacing:.03em;color:var(--text);text-align:center}}
-.meteo-minmax{{display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:15px;justify-content:center}}
+.meteo-minmax{{display:flex;flex-direction:column;gap:2px;font-family:'DM Mono',monospace;font-size:15px;align-items:center}}
 .temp-max{{color:var(--orange);font-weight:600}}
 .temp-min{{color:var(--accent2);font-weight:600}}
 .geo-fallback{{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace}}
