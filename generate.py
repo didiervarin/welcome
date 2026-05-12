@@ -366,10 +366,10 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 .meteo-rain-val{{font-family:'DM Serif Display',serif;font-size:44px;line-height:1;color:var(--text);text-align:center}}
 .meteo-rain-val sup{{font-size:18px;vertical-align:super;color:var(--muted);font-family:'Syne',sans-serif;font-weight:400}}
 .meteo-lieu{{font-size:13px;font-weight:600;letter-spacing:.03em;text-align:center}}
-.meteo-desc{{font-size:11px;color:var(--muted);text-align:center}}
-.meteo-minmax{{display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:11px;justify-content:center}}
-.temp-max{{color:var(--orange);font-weight:500}}
-.temp-min{{color:var(--accent2);font-weight:500}}
+.meteo-desc{{font-size:13px;font-weight:600;letter-spacing:.03em;color:var(--text);text-align:center}}
+.meteo-minmax{{display:flex;gap:8px;font-family:'DM Mono',monospace;font-size:15px;justify-content:center}}
+.temp-max{{color:var(--orange);font-weight:600}}
+.temp-min{{color:var(--accent2);font-weight:600}}
 .geo-fallback{{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace}}
 .ratp-lines{{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}}
 .ratp-line{{display:flex;flex-direction:column;align-items:center;gap:6px}}
@@ -406,12 +406,10 @@ body{{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-h
 
 <div class="header">
   <div class="header-left">
-    <div class="title">Paris · Dashboard</div>
-    <div class="subtitle">Levallois · 8e · RATP · Vélib · Cinéma · Agenda</div>
+    <div class="title">{jour} {ts.split('·')[0].strip()}</div>
   </div>
   <div class="datetime">
     <div class="time-big">{now.strftime('%H h %M')}</div>
-    <div class="date-str">{jour} {ts.split('·')[0].strip()}</div>
   </div>
 </div>
 
