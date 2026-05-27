@@ -4,12 +4,15 @@ on:
   schedule:
     # Toutes les 15 minutes (00, 15, 30, 45), entre 6h et 23h UTC (8h-1h heure Paris)
     - cron: '0,15,30,45 6-23 * * *'
-  workflow_dispatch: # Lancement manuel depuis l'onglet Actions
+  push:
+    branches:
+      - main                        # Chaque push sur main réveille aussi le scheduler
+  workflow_dispatch:                # Lancement manuel depuis l'onglet Actions
   repository_dispatch:
-    types: [manual-refresh]  # Déclenché par le bouton Refresh de la page
+    types: [manual-refresh]         # Déclenché par le bouton Refresh de la page
 
 permissions:
-  contents: write  # Nécessaire pour pousser sur gh-pages
+  contents: write                   # Nécessaire pour pousser sur gh-pages
 
 jobs:
   build:
@@ -31,17 +34,20 @@ jobs:
 
       - name: Générer le dashboard
         env:
-          IDFM_API_KEY: ${{ secrets.IDFM_API_KEY }}   # Optionnel — clé IDF Mobilités
+          IDFM_API_KEY: ${{ secrets.IDFM_API_KEY }}
           ICLOUD_USER: ${{ secrets.ICLOUD_USER }}
           ICLOUD_PASSWORD: ${{ secrets.ICLOUD_PASSWORD }}
         run: python generate.py
 
-      - name: Sauvegarder le cache agenda
+      - name: Sauvegarder le cache et maintenir le cron actif
         run: |
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
           git add agenda_cache.json || true
-          git diff --cached --quiet || git commit -m "cache agenda $(date -u '+%H:%M')"
+          # Fichier horodaté — change à chaque run → commit garanti → cron reste actif
+          echo "$(date -u '+%Y-%m-%d %H:%M')" > .last_run
+          git add .last_run
+          git commit -m "dashboard $(date -u '+%H:%M')"
           git push origin main || true
 
       - name: Déployer sur GitHub Pages
