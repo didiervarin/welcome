@@ -47,7 +47,7 @@ jobs:
           # Fichier horodaté — change à chaque run → commit garanti → cron reste actif
           echo "$(date -u '+%Y-%m-%d %H:%M')" > .last_run
           git add .last_run
-          git commit -m "dashboard $(date -u '+%H:%M')"
+          git commit -m "dashboard $(date -u '+%H:%M')" || true
           git push origin main || true
 
       - name: Déployer sur GitHub Pages
